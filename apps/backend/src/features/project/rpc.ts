@@ -13,6 +13,16 @@ export const createProjectRpc = os.project.createProject.handler(({ input }) =>
   ),
 );
 
+export const deleteProjectRpc = os.project.deleteProject.handler(({ input }) =>
+  Effect.gen(function* () {
+    const service = yield* ProjectService;
+    return yield* service.deleteProject(input);
+  }).pipe(
+    Effect.provide(ProjectService.live.pipe(Layer.provide(ConfigService.live))),
+    Effect.runPromise,
+  ),
+);
+
 export const listProjectsRpc = os.project.listProjects.handler(() =>
   Effect.gen(function* () {
     const service = yield* ProjectService;

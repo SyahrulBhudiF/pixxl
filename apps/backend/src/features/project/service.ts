@@ -1,13 +1,27 @@
 import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
-import { CreateProjectInput, ProjectMetadata, ProjectMetadataSchema } from "@pixxl/shared";
+import {
+  CreateProjectInput,
+  DeleteProjectInput,
+  ProjectMetadata,
+  ProjectMetadataSchema,
+} from "@pixxl/shared";
 import { ProjectError } from "./error";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
+import { nanoid } from "nanoid";
+import { slugify } from "@/utils/slug";
+
+function generateProjectId(): string {
+  const id = nanoid(8);
+  // Remove any non-alphanumeric chars and lowercase
+  return id.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+}
 
 type ProjectServiceShape = {
   readonly createProject: (
     input: CreateProjectInput,
   ) => Effect.Effect<ProjectMetadata, ProjectError>;
+  readonly deleteProject: (input: DeleteProjectInput) => Effect.Effect<void, ProjectError>;
   readonly listProjects: () => Effect.Effect<ProjectMetadata[], ProjectError>;
 };
 
@@ -27,7 +41,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
       ) {
         const cfg = yield* config.loadConfig().pipe(mapToProjectError("Failed to load config"));
 
-        const projectPath = path.join(cfg.workspace.directory, input.name);
+        const projectPath = path.join(cfg.workspace.directory, slugify(input.name));
         const exists = yield* fs
           .exists(projectPath)
           .pipe(mapToProjectError(`Failed to check if project exists at ${projectPath}`));
@@ -53,6 +67,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
 
         const now = new Date().toISOString();
         const metadata: ProjectMetadata = {
+          id: generateProjectId(),
           name: input.name,
           path: projectPath,
           createdAt: now,
@@ -69,6 +84,34 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           );
 
         return metadata;
+      });
+
+      const deleteProject = Effect.fn("ProjectService.deleteProject")(function* (
+        input: DeleteProjectInput,
+      ) {
+        const projects = yield* listProjects();
+        const project = projects.find((p) => p.id === input.id);
+
+        if (!project) {
+          yield* new ProjectError({
+            message: `Project with id ${input.id} not found`,
+          });
+          return;
+        }
+
+        const exists = yield* fs
+          .exists(project.path)
+          .pipe(mapToProjectError(`Failed to check if project exists at ${project.path}`));
+
+        if (!exists) {
+          yield* new ProjectError({
+            message: `Project does not exist at ${project.path}`,
+          });
+        }
+
+        yield* fs
+          .remove(project.path, { recursive: true })
+          .pipe(mapToProjectError(`Failed to delete project at ${project.path}`));
       });
 
       const listProjects = Effect.fn("ProjectService.listProjects")(function* () {
@@ -122,7 +165,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return projects.filter((project) => project !== undefined);
       });
 
-      return { createProject, listProjects } as const;
+      return { createProject, deleteProject, listProjects } as const;
     }),
   },
 ) {

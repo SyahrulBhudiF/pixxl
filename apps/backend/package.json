@@ -10,6 +10,7 @@
     "@orpc/contract": "catalog:",
     "@orpc/server": "^1.13.9",
     "@pixxl/shared": "workspace:*",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "nanoid": "^5.1.7"
   }
 }

@@ -3,16 +3,26 @@ import { useState } from "react";
 import {
   RiAddLine,
   RiArrowRightSLine,
-  RiCloseLine,
+  RiDeleteBinLine,
   RiFolderOpenLine,
   RiGithubLine,
   RiSettings4Line,
   RiQuestionLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SettingsDialog } from "@/features/config/components/settings-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
-import { useListProjects } from "@/features/project/hooks/use-project";
+import { useDeleteProject, useListProjects } from "@/features/project/hooks/use-project";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -22,7 +32,9 @@ function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
 
+  const deleteProjectMutation = useDeleteProject();
   const { data: projects = [], status } = useListProjects({ onlyRecents: true });
 
   const filteredProjects = projects.filter((project) =>
@@ -84,12 +96,12 @@ function RouteComponent() {
           </div>
           <div className="flex flex-col border border-border overflow-hidden">
             {status === "pending" && (
-              <div className="flex h-125 items-center justify-center">
+              <div className="flex h-32 items-center justify-center">
                 <span className="text-muted-foreground">Loading...</span>
               </div>
             )}
             {status === "error" && (
-              <div className="flex h-125 items-center justify-center">
+              <div className="flex h-32 items-center justify-center">
                 <span className="text-destructive">Error loading projects</span>
               </div>
             )}
@@ -104,6 +116,7 @@ function RouteComponent() {
                     key={project.path}
                     project={project}
                     isLast={index === filteredProjects.length - 1}
+                    onDeleteClick={() => setDeleteProjectId(project.id)}
                   />
                 ))
               ))}
@@ -125,6 +138,39 @@ function RouteComponent() {
       {/* Settings Dialog */}
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <NewProjectDialog open={newProjectOpen} onOpenChange={setNewProjectOpen} />
+
+      {/* Delete Project Dialog */}
+      <AlertDialog
+        open={deleteProjectId !== null}
+        onOpenChange={(open) => !open && setDeleteProjectId(null)}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Project</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "
+              {projects.find((p) => p.id === deleteProjectId)?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteProjectId(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteProjectId) {
+                  deleteProjectMutation.mutate(
+                    { id: deleteProjectId },
+                    { onSuccess: () => setDeleteProjectId(null) },
+                  );
+                }
+              }}
+              disabled={deleteProjectMutation.isPending}
+            >
+              {deleteProjectMutation.isPending ? "Deleting..." : "Delete Project"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }
@@ -168,9 +214,10 @@ interface RecentProjectItemProps {
     createdAt: string;
   };
   isLast: boolean;
+  onDeleteClick: () => void;
 }
 
-function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
+function RecentProjectItem({ project, isLast, onDeleteClick }: RecentProjectItemProps) {
   return (
     <a
       href="#"
@@ -183,19 +230,22 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
         <p className="text-xs text-muted-foreground truncate">{project.path}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+        <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground translate-x-8 group-hover:translate-x-0 transition-transform">
           Created {new Date(project.createdAt).toLocaleDateString()}
         </span>
-        <button
+        <Button
+          variant="destructive"
+          size="icon-xs"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            onDeleteClick();
           }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-muted-foreground/10 transition-all"
-          title="Remove from recents"
+          className="opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 cursor-pointer"
+          title="Delete project"
         >
-          <RiCloseLine className="size-3.5 text-muted-foreground hover:text-foreground" />
-        </button>
+          <RiDeleteBinLine />
+        </Button>
       </div>
     </a>
   );

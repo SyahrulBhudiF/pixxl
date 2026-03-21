@@ -1,6 +1,6 @@
 import { os } from "./contract";
 import { getConfigRpc, updateConfigRpc } from "./features/config/rpc";
-import { createProjectRpc, listProjectsRpc } from "./features/project/rpc";
+import { createProjectRpc, deleteProjectRpc, listProjectsRpc } from "./features/project/rpc";
 
 export const router = os.router({
   config: {
@@ -9,6 +9,7 @@ export const router = os.router({
   },
   project: {
     createProject: createProjectRpc,
+    deleteProject: deleteProjectRpc,
     listProjects: listProjectsRpc,
   },
 });

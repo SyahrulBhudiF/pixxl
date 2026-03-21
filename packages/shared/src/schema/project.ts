@@ -22,6 +22,7 @@ export const CreateProjectInputSchema = Schema.Struct({
 });
 
 export const ProjectMetadataSchema = Schema.Struct({
+  id: Schema.String,
   name: Schema.String,
   path: Schema.String,
   createdAt: Schema.String,
@@ -34,7 +35,12 @@ export const ListProjectsInputSchema = Schema.Struct({
 
 export const ProjectMetadataListSchema = Schema.Array(ProjectMetadataSchema);
 
+export const DeleteProjectInputSchema = Schema.Struct({
+  id: Schema.String,
+});
+
 export type CreateProjectInput = typeof CreateProjectInputSchema.Type;
 export type ListProjectsInput = typeof ListProjectsInputSchema.Type;
 export type ProjectMetadata = typeof ProjectMetadataSchema.Type;
 export type ProjectMetadataList = typeof ProjectMetadataListSchema.Type;
+export type DeleteProjectInput = typeof DeleteProjectInputSchema.Type;

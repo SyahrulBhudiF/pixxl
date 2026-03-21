@@ -9,58 +9,46 @@ import {
 import type { SelectEntry } from "@/views/components/ui/select";
 import { Slider } from "@/views/components/ui/slider";
 import { Switch } from "@/views/components/ui/switch";
+import type { Terminal } from "@/shared/schema/config";
 
-export function TerminalSettings({
-  fontSize,
-  setFontSize,
-  fontFamily,
-  setFontFamily,
-  cursorStyle,
-  setCursorStyle,
-  cursorBlink,
-  setCursorBlink,
-}: {
-  fontSize: number;
-  setFontSize: (v: number) => void;
-  fontFamily: string;
-  setFontFamily: (v: string) => void;
-  cursorStyle: "block" | "underline" | "bar";
-  setCursorStyle: (v: "block" | "underline" | "bar") => void;
-  cursorBlink: boolean;
-  setCursorBlink: (v: boolean) => void;
-}) {
-  const fontFamilies: SelectEntry[] = [
-    { value: "JetBrains Mono", label: "JetBrains Mono" },
-    { value: "Fira Code", label: "Fira Code" },
-    { value: "SF Mono", label: "SF Mono" },
-    { value: "Source Code Pro", label: "Source Code Pro" },
-    { value: "Iosevka", label: "Iosevka" },
-  ];
+interface TerminalSettingsProps {
+  terminal: Terminal;
+  onUpdate: (terminal: Partial<Terminal>) => void;
+}
 
-  const cursorStyles: SelectEntry[] = [
-    { value: "block", label: "Block" },
-    { value: "underline", label: "Underline" },
-    { value: "bar", label: "Bar" },
-  ];
+const fontFamilies: SelectEntry[] = [
+  { value: "JetBrains Mono", label: "JetBrains Mono" },
+  { value: "Fira Code", label: "Fira Code" },
+  { value: "SF Mono", label: "SF Mono" },
+  { value: "Source Code Pro", label: "Source Code Pro" },
+  { value: "Iosevka", label: "Iosevka" },
+];
 
-  const shells: SelectEntry[] = [
-    { value: "/bin/zsh", label: "Zsh" },
-    { value: "/bin/bash", label: "Bash" },
-    { value: "/bin/fish", label: "Fish" },
-  ];
+const cursorStyles: SelectEntry[] = [
+  { value: "block", label: "Block" },
+  { value: "underline", label: "Underline" },
+  { value: "bar", label: "Bar" },
+];
 
+const shells: SelectEntry[] = [
+  { value: "/bin/zsh", label: "Zsh" },
+  { value: "/bin/bash", label: "Bash" },
+  { value: "/bin/fish", label: "Fish" },
+];
+
+export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) {
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Terminal</h3>
       <div className="border border-border">
         <SettingRow label="Font Size" description="Terminal text size in pixels">
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground w-8">{fontSize}px</span>
+            <span className="text-sm text-muted-foreground w-8">{terminal.fontSize}px</span>
             <Slider
-              value={[fontSize]}
+              value={[terminal.fontSize]}
               onValueChange={(values) => {
                 const val = Array.isArray(values) ? values[0] : values;
-                setFontSize(val);
+                onUpdate({ fontSize: val });
               }}
               min={10}
               max={24}
@@ -68,7 +56,10 @@ export function TerminalSettings({
           </div>
         </SettingRow>
         <SettingRow label="Font Family" description="Monospace font for the terminal">
-          <Select value={fontFamily} onValueChange={(v) => setFontFamily(v ?? fontFamily)}>
+          <Select
+            value={terminal.fontFamily}
+            onValueChange={(v) => v && onUpdate({ fontFamily: v })}
+          >
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -83,10 +74,8 @@ export function TerminalSettings({
         </SettingRow>
         <SettingRow label="Cursor Style" description="Shape of the terminal cursor">
           <Select
-            value={cursorStyle}
-            onValueChange={(v) =>
-              setCursorStyle((v ?? cursorStyle) as "block" | "underline" | "bar")
-            }
+            value={terminal.cursorStyle}
+            onValueChange={(v) => v && onUpdate({ cursorStyle: v as Terminal["cursorStyle"] })}
           >
             <SelectTrigger className="w-28">
               <SelectValue />
@@ -101,10 +90,13 @@ export function TerminalSettings({
           </Select>
         </SettingRow>
         <SettingRow label="Cursor Blink" description="Animate cursor when idle">
-          <Switch checked={cursorBlink} onCheckedChange={setCursorBlink} />
+          <Switch
+            checked={terminal.cursorBlink}
+            onCheckedChange={(checked) => onUpdate({ cursorBlink: checked })}
+          />
         </SettingRow>
         <SettingRow label="Shell" description="Default shell to use">
-          <Select value="/bin/zsh" onValueChange={() => {}}>
+          <Select value={terminal.shell} onValueChange={(v) => v && onUpdate({ shell: v })}>
             <SelectTrigger className="w-28">
               <SelectValue />
             </SelectTrigger>

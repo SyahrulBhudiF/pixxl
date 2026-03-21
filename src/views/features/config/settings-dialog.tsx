@@ -5,12 +5,14 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/views/components/ui/dialog";
-import { SettingsSidebar } from "./sidebar";
+import { SettingsSidebar } from "./settings-sidebar";
 import { WorkspaceSettings } from "./settings-workspace";
 import { TerminalSettings } from "./settings-terminal";
 import { AgentSettings } from "./settings-agent";
 import { AppearanceSettings } from "./settings-appearance";
 import { AboutSettings } from "./settings-about";
+import { useConfig, useUpdateConfig } from "./hooks";
+import type { Config } from "@/shared/schema/config";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -21,15 +23,26 @@ type SettingsSection = "workspace" | "terminal" | "agent" | "appearance" | "abou
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [activeSection, setActiveSection] = React.useState<SettingsSection>("workspace");
-  const [workspaceDir, setWorkspaceDir] = React.useState("");
-  const [terminalFontSize, setTerminalFontSize] = React.useState(14);
-  const [terminalFontFamily, setTerminalFontFamily] = React.useState("JetBrains Mono");
-  const [cursorStyle, setCursorStyle] = React.useState<"block" | "underline" | "bar">("block");
-  const [cursorBlink, setCursorBlink] = React.useState(true);
-  const [agentProvider, setAgentProvider] = React.useState("anthropic");
-  const [agentModel, setAgentModel] = React.useState("claude-sonnet-4-20250514");
-  const [agentName, setAgentName] = React.useState("pi");
-  const [colorScheme, setColorScheme] = React.useState<"dark" | "light" | "system">("dark");
+  const { data: config, isLoading } = useConfig();
+  const updateConfig = useUpdateConfig();
+
+  if (isLoading || !config) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="overflow-hidden p-0 max-h-125 min-w-3/5">
+          <DialogTitle className="sr-only">Settings</DialogTitle>
+          <DialogDescription className="sr-only">Customize your settings here.</DialogDescription>
+          <div className="flex h-125 items-center justify-center">
+            <span className="text-muted-foreground">Loading...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const handleUpdate = (section: keyof Config, partial: Record<string, unknown>) => {
+    updateConfig.mutate({ [section]: partial } as Partial<Config>);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -43,32 +56,28 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <main className="flex-1 overflow-y-auto">
             <div className="p-5">
               {activeSection === "workspace" && (
-                <WorkspaceSettings workspaceDir={workspaceDir} setWorkspaceDir={setWorkspaceDir} />
+                <WorkspaceSettings
+                  workspace={config.workspace}
+                  onUpdate={(partial) => handleUpdate("workspace", partial)}
+                />
               )}
               {activeSection === "terminal" && (
                 <TerminalSettings
-                  fontSize={terminalFontSize}
-                  setFontSize={setTerminalFontSize}
-                  fontFamily={terminalFontFamily}
-                  setFontFamily={setTerminalFontFamily}
-                  cursorStyle={cursorStyle}
-                  setCursorStyle={setCursorStyle}
-                  cursorBlink={cursorBlink}
-                  setCursorBlink={setCursorBlink}
+                  terminal={config.terminal}
+                  onUpdate={(partial) => handleUpdate("terminal", partial)}
                 />
               )}
               {activeSection === "agent" && (
                 <AgentSettings
-                  provider={agentProvider}
-                  setProvider={setAgentProvider}
-                  model={agentModel}
-                  setModel={setAgentModel}
-                  agentName={agentName}
-                  setAgentName={setAgentName}
+                  agent={config.agent}
+                  onUpdate={(partial) => handleUpdate("agent", partial)}
                 />
               )}
               {activeSection === "appearance" && (
-                <AppearanceSettings colorScheme={colorScheme} setColorScheme={setColorScheme} />
+                <AppearanceSettings
+                  appearance={config.appearance}
+                  onUpdate={(partial) => handleUpdate("appearance", partial)}
+                />
               )}
               {activeSection === "about" && <AboutSettings />}
             </div>

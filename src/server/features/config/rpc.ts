@@ -1,6 +1,6 @@
 import { os } from "@orpc/server";
 import { Schema, Effect, Layer } from "effect";
-import { ConfigSchema } from "./schema";
+import { ConfigSchema } from "@/shared/schema/config";
 import { ConfigService } from "./service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 

@@ -1,5 +1,5 @@
 import { Effect, Layer, ServiceMap, FileSystem, Path, Config, type PlatformError } from "effect";
-import { DEFAULT_CONFIG, type Config as ConfigType } from "./schema";
+import { DEFAULT_CONFIG, type Config as ConfigType } from "@/shared/schema/config";
 
 const APP_DIR = "pixxl";
 const CONFIG_FILE = "config.json";

@@ -37,6 +37,10 @@ export const ConfigSchema = Schema.Struct({
   appearance: AppearanceSchema,
 });
 export type Config = typeof ConfigSchema.Type;
+export type Workspace = typeof WorkspaceSchema.Type;
+export type Terminal = typeof TerminalSchema.Type;
+export type Agent = typeof AgentSchema.Type;
+export type Appearance = typeof AppearanceSchema.Type;
 
 export const DEFAULT_CONFIG: Config = {
   workspace: {

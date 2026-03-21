@@ -11,7 +11,7 @@ import {
   RiQuestionLine,
 } from "@remixicon/react";
 import { Button } from "@/views/components/ui/button";
-import { SettingsDialog } from "@/views/components/ui/settings";
+import { SettingsDialog } from "@/views/features/config";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,

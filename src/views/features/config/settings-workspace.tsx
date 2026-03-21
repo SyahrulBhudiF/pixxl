@@ -2,13 +2,14 @@ import { Button } from "@/views/components/ui/button";
 import { SettingRow } from "./setting-row";
 import { Switch } from "@/views/components/ui/switch";
 import { Input } from "@/views/components/ui/input";
+import type { Workspace } from "@/shared/schema/config";
 
 interface WorkspaceSettingsProps {
-  workspaceDir: string;
-  setWorkspaceDir: (v: string) => void;
+  workspace: Workspace;
+  onUpdate: (workspace: Partial<Workspace>) => void;
 }
 
-export function WorkspaceSettings(props: WorkspaceSettingsProps) {
+export function WorkspaceSettings({ workspace, onUpdate }: WorkspaceSettingsProps) {
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Workspace</h3>
@@ -19,8 +20,8 @@ export function WorkspaceSettings(props: WorkspaceSettingsProps) {
         >
           <div className="flex items-center gap-2">
             <Input
-              value={props.workspaceDir}
-              onChange={(e) => props.setWorkspaceDir(e.target.value)}
+              value={workspace.directory}
+              onChange={(e) => onUpdate({ directory: e.target.value })}
               placeholder="~/Development"
             />
             <Button size="sm" className="h-8">
@@ -29,7 +30,10 @@ export function WorkspaceSettings(props: WorkspaceSettingsProps) {
           </div>
         </SettingRow>
         <SettingRow label="Auto-save Workspace" description="Remember open projects when closing">
-          <Switch checked={true} onCheckedChange={() => {}} />
+          <Switch
+            checked={workspace.autoSave}
+            onCheckedChange={(checked) => onUpdate({ autoSave: checked })}
+          />
         </SettingRow>
       </div>
     </div>

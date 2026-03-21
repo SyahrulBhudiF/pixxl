@@ -8,28 +8,28 @@ import {
 } from "@/views/components/ui/select";
 import type { SelectEntry } from "@/views/components/ui/select";
 import { Switch } from "@/views/components/ui/switch";
+import type { Appearance } from "@/shared/schema/config";
 
-export function AppearanceSettings({
-  colorScheme,
-  setColorScheme,
-}: {
-  colorScheme: "dark" | "light" | "system";
-  setColorScheme: (v: "dark" | "light" | "system") => void;
-}) {
-  const colorSchemes: SelectEntry[] = [
-    { value: "dark", label: "Dark" },
-    { value: "light", label: "Light" },
-    { value: "system", label: "System" },
-  ];
+interface AppearanceSettingsProps {
+  appearance: Appearance;
+  onUpdate: (appearance: Partial<Appearance>) => void;
+}
 
+const colorSchemes: SelectEntry[] = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+  { value: "system", label: "System" },
+];
+
+export function AppearanceSettings({ appearance, onUpdate }: AppearanceSettingsProps) {
   return (
     <div>
       <h3 className="text-base font-semibold mb-4">Appearance</h3>
       <div className="border border-border">
         <SettingRow label="Color Scheme" description="Choose your preferred theme">
           <Select
-            value={colorScheme}
-            onValueChange={(v) => setColorScheme((v ?? colorScheme) as "dark" | "light" | "system")}
+            value={appearance.colorScheme}
+            onValueChange={(v) => v && onUpdate({ colorScheme: v as Appearance["colorScheme"] })}
           >
             <SelectTrigger className="w-28">
               <SelectValue />
@@ -44,10 +44,16 @@ export function AppearanceSettings({
           </Select>
         </SettingRow>
         <SettingRow label="Compact Mode" description="Reduce spacing for denser UI">
-          <Switch checked={false} onCheckedChange={() => {}} />
+          <Switch
+            checked={appearance.compactMode}
+            onCheckedChange={(checked) => onUpdate({ compactMode: checked })}
+          />
         </SettingRow>
         <SettingRow label="Show Line Numbers" description="Display line numbers in editor">
-          <Switch checked={true} onCheckedChange={() => {}} />
+          <Switch
+            checked={appearance.showLineNumbers}
+            onCheckedChange={(checked) => onUpdate({ showLineNumbers: checked })}
+          />
         </SettingRow>
       </div>
     </div>

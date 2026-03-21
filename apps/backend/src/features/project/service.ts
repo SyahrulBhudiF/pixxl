@@ -1,5 +1,5 @@
-import { Effect, FileSystem, Layer, Path, ServiceMap } from "effect";
-import { CreateProjectInput, ProjectMetadata } from "@pixxl/shared";
+import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { CreateProjectInput, ProjectMetadata, ProjectMetadataSchema } from "@pixxl/shared";
 import { ProjectError } from "./error";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
@@ -8,6 +8,7 @@ type ProjectServiceShape = {
   readonly createProject: (
     input: CreateProjectInput,
   ) => Effect.Effect<ProjectMetadata, ProjectError>;
+  readonly listProjects: () => Effect.Effect<ProjectMetadata[], ProjectError>;
 };
 
 const mapToProjectError = (message: string) =>
@@ -50,10 +51,12 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           { concurrency: "unbounded" },
         );
 
+        const now = new Date().toISOString();
         const metadata: ProjectMetadata = {
           name: input.name,
           path: projectPath,
-          createdAt: new Date().toISOString(),
+          createdAt: now,
+          updatedAt: now,
         };
 
         yield* fs
@@ -68,7 +71,58 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
         return metadata;
       });
 
-      return { createProject } as const;
+      const listProjects = Effect.fn("ProjectService.listProjects")(function* () {
+        const cfg = yield* config.loadConfig().pipe(mapToProjectError("Failed to load config"));
+
+        const workspaceExists = yield* fs
+          .exists(cfg.workspace.directory)
+          .pipe(
+            mapToProjectError(`Failed to check if workspace exists at ${cfg.workspace.directory}`),
+          );
+
+        if (!workspaceExists) {
+          return [];
+        }
+
+        const entries = yield* fs
+          .readDirectory(cfg.workspace.directory)
+          .pipe(
+            mapToProjectError(`Failed to read workspace directory at ${cfg.workspace.directory}`),
+          );
+
+        const projects = yield* Effect.all(
+          entries.map((entry) =>
+            Effect.gen(function* () {
+              const projectDir = path.join(cfg.workspace.directory, entry);
+              const projectJsonPath = path.join(projectDir, "project.json");
+
+              const projectJsonExists = yield* fs
+                .exists(projectJsonPath)
+                .pipe(
+                  mapToProjectError(`Failed to check if project.json exists at ${projectJsonPath}`),
+                );
+              if (!projectJsonExists) return;
+
+              const content = yield* fs
+                .readFileString(projectJsonPath)
+                .pipe(mapToProjectError(`Failed to read project.json at ${projectJsonPath}`));
+              const metadata = yield* Schema.decodeUnknownEffect(
+                Schema.fromJsonString(ProjectMetadataSchema),
+              )(content).pipe(
+                mapToProjectError(
+                  `Failed to decode project.json at ${projectJsonPath}. Fix missing/invalid fields in project.json.`,
+                ),
+              );
+              return metadata;
+            }),
+          ),
+          { concurrency: "unbounded" },
+        );
+
+        return projects.filter((project) => project !== undefined);
+      });
+
+      return { createProject, listProjects } as const;
     }),
   },
 ) {

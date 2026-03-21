@@ -25,7 +25,16 @@ export const ProjectMetadataSchema = Schema.Struct({
   name: Schema.String,
   path: Schema.String,
   createdAt: Schema.String,
+  updatedAt: Schema.String,
 });
 
+export const ListProjectsInputSchema = Schema.Struct({
+  onlyRecents: Schema.optionalKey(Schema.Boolean),
+});
+
+export const ProjectMetadataListSchema = Schema.Array(ProjectMetadataSchema);
+
 export type CreateProjectInput = typeof CreateProjectInputSchema.Type;
+export type ListProjectsInput = typeof ListProjectsInputSchema.Type;
 export type ProjectMetadata = typeof ProjectMetadataSchema.Type;
+export type ProjectMetadataList = typeof ProjectMetadataListSchema.Type;

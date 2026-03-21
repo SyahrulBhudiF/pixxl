@@ -1,5 +1,5 @@
 import { getConfigContract, updateConfigContract } from "./contracts/config";
-import { createProjectContract } from "./contracts/project";
+import { createProjectContract, listProjectsContract } from "./contracts/project";
 
 export const routerContract = {
   config: {
@@ -8,5 +8,6 @@ export const routerContract = {
   },
   project: {
     createProject: createProjectContract,
+    listProjects: listProjectsContract,
   },
 };

@@ -7,45 +7,25 @@ import {
   RiFolderOpenLine,
   RiGithubLine,
   RiSettings4Line,
-  RiTimeLine,
   RiQuestionLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import { SettingsDialog } from "@/features/config/components/settings-dialog";
 import { NewProjectDialog } from "@/features/project/components/new-project-dialog";
+import { useListProjects } from "@/features/project/hooks/use-project";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
 });
-
-// Sample data - replace with actual data source
-const recentProjects = [
-  {
-    id: "1",
-    name: "pixxl",
-    path: "~/Development/personal/pixxl",
-    lastOpened: "2 hours ago",
-  },
-  {
-    id: "2",
-    name: "api-gateway",
-    path: "~/Development/work/api-gateway",
-    lastOpened: "Yesterday",
-  },
-  {
-    id: "3",
-    name: "dashboard-app",
-    path: "~/Development/clients/acme/dashboard",
-    lastOpened: "3 days ago",
-  },
-];
 
 function RouteComponent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newProjectOpen, setNewProjectOpen] = useState(false);
 
-  const filteredProjects = recentProjects.filter((project) =>
+  const { data: projects = [], status } = useListProjects({ onlyRecents: true });
+
+  const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
@@ -91,34 +71,44 @@ function RouteComponent() {
           </div>
         </section>
 
-        {/* Recent Projects */}
-        {recentProjects.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Recent Projects
-              </h2>
-              <Button variant="ghost" size="sm" className="text-muted-foreground">
-                See All
-                <RiArrowRightSLine className="size-3.5" />
-              </Button>
-            </div>
-            <div className="flex flex-col border border-border overflow-hidden">
-              {filteredProjects.map((project, index) => (
-                <RecentProjectItem
-                  key={project.id}
-                  project={project}
-                  isLast={index === filteredProjects.length - 1}
-                />
-              ))}
-              {filteredProjects.length === 0 && (
+        {/* Projects */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Recent Projects
+            </h2>
+            <Button variant="ghost" size="sm" className="text-muted-foreground">
+              See All
+              <RiArrowRightSLine className="size-3.5" />
+            </Button>
+          </div>
+          <div className="flex flex-col border border-border overflow-hidden">
+            {status === "pending" && (
+              <div className="flex h-125 items-center justify-center">
+                <span className="text-muted-foreground">Loading...</span>
+              </div>
+            )}
+            {status === "error" && (
+              <div className="flex h-125 items-center justify-center">
+                <span className="text-destructive">Error loading projects</span>
+              </div>
+            )}
+            {status === "success" &&
+              (filteredProjects.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No projects found
                 </div>
-              )}
-            </div>
-          </section>
-        )}
+              ) : (
+                filteredProjects.map((project, index) => (
+                  <RecentProjectItem
+                    key={project.path}
+                    project={project}
+                    isLast={index === filteredProjects.length - 1}
+                  />
+                ))
+              ))}
+          </div>
+        </section>
 
         {/* Footer */}
         <footer className="flex items-center justify-center gap-6 pt-4 border-t border-border">
@@ -173,10 +163,9 @@ function QuickActionCard({ icon: Icon, title, description, href, onClick }: Quic
 
 interface RecentProjectItemProps {
   project: {
-    id: string;
     name: string;
     path: string;
-    lastOpened: string;
+    createdAt: string;
   };
   isLast: boolean;
 }
@@ -185,9 +174,8 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
   return (
     <a
       href="#"
-      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${
-        !isLast ? "border-b border-border" : ""
-      }`}
+      className={`group flex items-center gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer ${!isLast ? "border-b border-border" : ""
+        }`}
     >
       <RiFolderOpenLine className="size-5 text-muted-foreground shrink-0" />
       <div className="flex-1 min-w-0">
@@ -195,9 +183,8 @@ function RecentProjectItem({ project, isLast }: RecentProjectItemProps) {
         <p className="text-xs text-muted-foreground truncate">{project.path}</p>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground translate-x-8 group-hover:translate-x-0 transition-transform">
-          <RiTimeLine className="size-3" />
-          {project.lastOpened}
+        <span className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+          Created {new Date(project.createdAt).toLocaleDateString()}
         </span>
         <button
           onClick={(e) => {

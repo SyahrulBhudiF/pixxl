@@ -21,7 +21,7 @@ import {
   RiRobot2Line,
   RiTerminalBoxLine,
 } from "@remixicon/react";
-import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import type { AgentMetadata, TerminalMetadata, CommandMetadata } from "@pixxl/shared";
 import { useCreateAgent } from "@/features/agent/hooks/use-agent";
 import { useCreateTerminal } from "@/features/terminal/hooks/use-terminal";
 
@@ -29,10 +29,13 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   projectId: string;
   agents?: AgentMetadata[];
   terminals?: TerminalMetadata[];
+  commands?: CommandMetadata[];
   isAgentsLoading?: boolean;
   isTerminalsLoading?: boolean;
+  isCommandsLoading?: boolean;
   onEditAgent?: (agent: AgentMetadata) => void;
   onEditTerminal?: (terminal: TerminalMetadata) => void;
+  onEditCommand?: (command: CommandMetadata) => void;
   onAddCommand?: () => void;
 }
 
@@ -85,10 +88,13 @@ export function AppSidebar({
   projectId,
   agents = [],
   terminals = [],
+  commands = [],
   isAgentsLoading = false,
   isTerminalsLoading = false,
+  isCommandsLoading = false,
   onEditAgent,
   onEditTerminal,
+  onEditCommand,
   onAddCommand,
   ...props
 }: AppSidebarProps) {
@@ -149,19 +155,32 @@ export function AppSidebar({
         title: "Commands",
         url: "#",
         icon: <RiCommandLine />,
-        items: [EmptyItem, { title: "+ Add Command", url: "#", onClick: onAddCommand }],
+        items:
+          isCommandsLoading || commands.length === 0
+            ? [EmptyItem, { title: "+ Add Command", url: "#" }]
+            : [
+                ...commands.map((command) => ({
+                  title: command.name,
+                  url: "#",
+                  id: command.id,
+                  onEdit: onEditCommand ? () => onEditCommand(command) : undefined,
+                })),
+                { title: "+ Add Command", url: "#", onClick: onAddCommand },
+              ],
       },
     ],
     [
       agents,
       terminals,
+      commands,
       isAgentsLoading,
       isTerminalsLoading,
+      isCommandsLoading,
       handleAddAgent,
       handleAddTerminal,
       onEditAgent,
       onEditTerminal,
-      onAddCommand,
+      onEditCommand,
     ],
   );
 

@@ -7,7 +7,7 @@ export interface TerminalActorInput {
 }
 
 export interface Client {
-  send: (data: string) => void;
+  send: (data: string | Uint8Array) => void;
   closed: boolean;
   close?: () => void;
 }
@@ -42,10 +42,10 @@ export const terminalMachine = setup({
           cols: 80,
           rows: 24,
           data(term, data) {
-            const output = Buffer.from(data).toString("base64");
+            const output = new Uint8Array(data);
             context.clients.forEach((client) => {
               if (!client.closed) {
-                client.send(JSON.stringify({ type: "output", data: output }));
+                client.send(output);
               }
             });
           },

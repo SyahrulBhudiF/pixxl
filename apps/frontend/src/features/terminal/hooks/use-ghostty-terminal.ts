@@ -82,15 +82,15 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
     });
 
     ws.addEventListener("message", (event) => {
-      console.log("WS MESSAGE", event.data);
-      if (typeof event.data === "string") {
+      if (event.data instanceof ArrayBuffer) {
+        // Raw binary terminal output
+        const data = new Uint8Array(event.data);
+        terminal.write(data);
+        options.onOutput?.(new TextDecoder().decode(data));
+      } else if (typeof event.data === "string") {
         try {
           const message = JSON.parse(event.data);
-          if (message.type === "output") {
-            const decoded = atob(message.data);
-            terminal.write(decoded);
-            options.onOutput?.(decoded);
-          } else if (message.type === "closed") {
+          if (message.type === "closed") {
             console.log(`[Terminal ${options.terminalId}] Closed: ${message.reason}`);
             options.onClosed?.(message.reason);
           } else if (message.type === "error") {

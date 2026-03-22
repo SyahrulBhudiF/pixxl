@@ -1,14 +1,11 @@
-type TerminalMessage =
-  | { type: "output"; data: string }
-  | { type: "closed"; reason: string }
-  | { type: "error"; message: string };
+type TerminalMessage = { type: "closed"; reason: string } | { type: "error"; message: string };
 
 type TerminalClientMessage =
   | { type: "input"; data: string }
   | { type: "resize"; cols: number; rows: number };
 
 type TerminalEventHandlers = {
-  onOutput: (data: string) => void;
+  onOutput: (data: Uint8Array) => void;
   onClose: (reason: string) => void;
   onError: (message: string) => void;
 };
@@ -25,13 +22,16 @@ export function createTerminalConnection(terminalId: string, handlers: TerminalE
   };
 
   ws.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      // Raw binary terminal output
+      handlers.onOutput(new Uint8Array(event.data));
+      return;
+    }
+
     try {
       const message: TerminalMessage = JSON.parse(event.data);
 
       switch (message.type) {
-        case "output":
-          handlers.onOutput(message.data);
-          break;
         case "closed":
           handlers.onClose(message.reason);
           break;

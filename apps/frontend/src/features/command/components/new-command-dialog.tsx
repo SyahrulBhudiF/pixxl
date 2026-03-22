@@ -10,34 +10,25 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { useCreateCommand } from "../hooks/use-command";
 
 interface NewCommandDialogProps {
-  projectId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onCreate: (input: { name: string; command: string; description?: string }) => void;
 }
 
-export function NewCommandDialog({ projectId, open, onOpenChange }: NewCommandDialogProps) {
+export function NewCommandDialog({ open, onOpenChange, onCreate }: NewCommandDialogProps) {
   const [name, setName] = useState("");
   const [command, setCommand] = useState("");
   const [description, setDescription] = useState("");
-  const createCommand = useCreateCommand();
 
   function submit() {
     if (!name.trim() || !command.trim()) return;
-
-    createCommand.mutate(
-      { projectId, name, command, description },
-      {
-        onSuccess: () => {
-          setName("");
-          setCommand("");
-          setDescription("");
-          onOpenChange(false);
-        },
-      },
-    );
+    onCreate({ name, command, description });
+    setName("");
+    setCommand("");
+    setDescription("");
+    onOpenChange(false);
   }
 
   return (
@@ -47,7 +38,6 @@ export function NewCommandDialog({ projectId, open, onOpenChange }: NewCommandDi
           <DialogTitle>New Command</DialogTitle>
           <DialogDescription>Create a new command in your project.</DialogDescription>
         </DialogHeader>
-
         <div className="grid gap-3">
           <div className="grid gap-1">
             <label className="text-xs text-muted-foreground">Command name</label>
@@ -70,18 +60,12 @@ export function NewCommandDialog({ projectId, open, onOpenChange }: NewCommandDi
               placeholder="Build the project"
             />
           </div>
-          {createCommand.error instanceof Error && (
-            <p className="text-xs text-destructive">{createCommand.error.message}</p>
-          )}
         </div>
-
         <DialogFooter>
           <Button variant="outline" onClick={onOpenChange.bind(null, false)}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={createCommand.isPending}>
-            {createCommand.isPending ? "Creating..." : "Create Command"}
-          </Button>
+          <Button onClick={submit}>Create Command</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

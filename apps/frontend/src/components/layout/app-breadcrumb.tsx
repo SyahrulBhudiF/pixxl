@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import { useRouterState, useParams } from "@tanstack/react-router";
+import { eq } from "@tanstack/db";
+import { useLiveQuery } from "@tanstack/react-db";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,63 +10,50 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useGetProjectDetail } from "@/features/project/hooks/use-project";
-import { useListAgents } from "@/features/agent/hooks/use-agent";
-import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
+import { terminalsCollection } from "@/features/terminal/terminals-collection";
+import { agentsCollection } from "@/features/agent/agents-collection";
 
 export function AppBreadcrumb() {
-  const projectId = useParams({
-    select: (p) => p.projectId as string,
-    strict: false,
-  });
+  const projectId = useParams({ select: (p) => p.projectId as string, strict: false });
   const routerState = useRouterState();
-  const projectQuery = useGetProjectDetail({ id: projectId });
-  const agentsQuery = useListAgents({ projectId });
-  const terminalsQuery = useListTerminals({ projectId });
+  const resolvedPath = routerState.resolvedLocation?.pathname ?? "";
+
+  const terminalMatch = resolvedPath.match(/\/terminal\/([^/]+)/);
+  const agentMatch = resolvedPath.match(/\/agent\/([^/]+)/);
+
+  const terminalId = terminalMatch?.[1];
+  const agentId = agentMatch?.[1];
+
+  const terminal = useLiveQuery(
+    (q) =>
+      q
+        .from({ terminal: terminalsCollection })
+        .where(({ terminal }) => eq(terminal.id, terminalId ?? ""))
+        .findOne(),
+    [terminalId],
+  );
+  const agent = useLiveQuery(
+    (q) =>
+      q
+        .from({ agent: agentsCollection })
+        .where(({ agent }) => eq(agent.id, agentId ?? ""))
+        .findOne(),
+    [agentId],
+  );
 
   const breadcrumb = useMemo(() => {
-    const projectName = projectQuery.data?.name ?? "Project";
-    const resolvedPath = routerState.resolvedLocation?.pathname ?? "";
+    const projectName = projectId ?? "Project";
 
-    // Check route patterns
-    const terminalMatch = resolvedPath.match(/\/terminal\/([^/]+)/);
-    const agentMatch = resolvedPath.match(/\/agent\/([^/]+)/);
-    const commandMatch = resolvedPath.match(/\/command\/([^/]+)/);
-
-    if (terminalMatch) {
-      const terminalId = terminalMatch[1];
-      const terminal = terminalsQuery.data?.find((t) => t.id === terminalId);
-      return {
-        projectName,
-        type: "Terminal" as const,
-        name: terminal?.name ?? "Terminal",
-      };
+    if (terminalId && terminal.data) {
+      return { projectName, type: "Terminal" as const, name: terminal.data.name };
     }
 
-    if (agentMatch) {
-      const agentId = agentMatch[1];
-      const agent = agentsQuery.data?.find((a) => a.id === agentId);
-      return {
-        projectName,
-        type: "Agent" as const,
-        name: agent?.name ?? "Agent",
-      };
+    if (agentId && agent.data) {
+      return { projectName, type: "Agent" as const, name: agent.data.name };
     }
 
-    if (commandMatch) {
-      return {
-        projectName,
-        type: "Command" as const,
-        name: "Command",
-      };
-    }
-
-    return {
-      projectName,
-      type: null,
-      name: null,
-    };
-  }, [projectQuery.data, routerState.resolvedLocation, terminalsQuery.data, agentsQuery.data]);
+    return { projectName, type: null, name: null };
+  }, [projectId, terminalId, terminal.data, agentId, agent.data]);
 
   return (
     <Breadcrumb>

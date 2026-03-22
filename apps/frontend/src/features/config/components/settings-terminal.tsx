@@ -52,7 +52,7 @@ export function TerminalSettings({ terminal, onUpdate }: TerminalSettingsProps) 
             <Slider
               value={[fontSizeSlider.localValue]}
               onValueChange={fontSizeSlider.handleValueChange}
-              onValueCommit={fontSizeSlider.handleValueCommit}
+              onValueCommitted={fontSizeSlider.handleValueCommit}
               min={10}
               max={24}
             />

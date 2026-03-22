@@ -123,7 +123,7 @@ export function AgentSettings({ agent, onUpdate }: AgentSettingsProps) {
             <Slider
               value={[temperatureSlider.localValue]}
               onValueChange={temperatureSlider.handleValueChange}
-              onValueCommit={temperatureSlider.handleValueCommit}
+              onValueCommitted={temperatureSlider.handleValueCommit}
               min={0}
               max={1}
               step={0.1}

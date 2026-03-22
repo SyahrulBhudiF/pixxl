@@ -4,32 +4,27 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/s
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { AppBreadcrumb } from "@/components/layout/app-breadcrumb";
 import { Separator } from "@base-ui/react";
-import { useListAgents } from "@/features/agent/hooks/use-agent";
-import { useDeleteAgent } from "@/features/agent/hooks/use-agent";
-import { useListTerminals } from "@/features/terminal/hooks/use-terminal";
-import { useDeleteTerminal } from "@/features/terminal/hooks/use-terminal";
-import { useDeleteCommand } from "@/features/command/hooks/use-command";
+import { useLiveQuery } from "@tanstack/react-db";
+import { agentsCollection } from "@/features/agent/agents-collection";
+import { terminalsCollection } from "@/features/terminal/terminals-collection";
+import { commandsCollection } from "@/features/command/commands-collection";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
-import type { AgentMetadata, CommandMetadata, TerminalMetadata } from "@pixxl/shared";
+import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import { generateId } from "@/lib/utils";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const projectId = useParams({
-    // this should be safe as this is a shell route, user will always be at least in /$projectId/
-    select: (p) => p.projectId as string,
-    strict: false,
-  });
+  const projectId = useParams({ select: (p) => p.projectId as string, strict: false });
   const navigate = useNavigate();
-  const agentsQuery = useListAgents({ projectId: projectId });
-  const terminalsQuery = useListTerminals({ projectId: projectId });
-  const deleteAgent = useDeleteAgent();
-  const deleteTerminal = useDeleteTerminal();
-  const deleteCommand = useDeleteCommand();
+
+  const agents = useLiveQuery(agentsCollection);
+  const terminals = useLiveQuery(terminalsCollection);
+  const commands = useLiveQuery(commandsCollection);
 
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
@@ -38,37 +33,88 @@ function RouteComponent() {
   function handleNavigateTerminal(terminal: TerminalMetadata) {
     void navigate({
       to: "/app/$projectId/terminal/$terminalId",
-      params: { projectId: projectId, terminalId: terminal.id },
+      params: { projectId, terminalId: terminal.id },
     });
   }
 
-  function handleDeleteAgent(agent: AgentMetadata) {
-    deleteAgent.mutate({ projectId: projectId, id: agent.id });
+  function handleCreateAgent(name: string) {
+    if (!agents.collection) return;
+    agents.collection.insert({
+      id: generateId(),
+      name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
-  function handleDeleteTerminal(terminal: TerminalMetadata) {
-    deleteTerminal.mutate({ projectId: projectId, id: terminal.id });
+  function handleUpdateAgent(id: string, name: string) {
+    if (!agents.collection) return;
+    agents.collection.update(id, (draft) => {
+      draft.name = name;
+      draft.updatedAt = new Date().toISOString();
+    });
   }
 
-  function handleDeleteCommand(command: CommandMetadata) {
-    deleteCommand.mutate({ projectId: projectId, id: command.id });
+  function handleDeleteAgent(id: string) {
+    if (!agents.collection) return;
+    agents.collection.delete(id);
+  }
+
+  function handleCreateTerminal(name: string) {
+    if (!terminals.collection) return;
+    terminals.collection.insert({
+      id: generateId(),
+      name,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function handleUpdateTerminal(id: string, name: string) {
+    if (!terminals.collection) return;
+    terminals.collection.update(id, (draft) => {
+      draft.name = name;
+      draft.updatedAt = new Date().toISOString();
+    });
+  }
+
+  function handleDeleteTerminal(id: string) {
+    if (!terminals.collection) return;
+    terminals.collection.delete(id);
+  }
+
+  function handleCreateCommand(input: { name: string; command: string; description?: string }) {
+    if (!commands.collection) return;
+    commands.collection.insert({
+      id: generateId(),
+      name: input.name,
+      command: input.command,
+      description: input.description ?? "",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  function handleDeleteCommand(id: string) {
+    if (!commands.collection) return;
+    commands.collection.delete(id);
   }
 
   return (
     <SidebarProvider>
       <AppSidebar
-        projectId={projectId}
-        agents={[...(agentsQuery.data ?? [])]}
-        terminals={[...(terminalsQuery.data ?? [])]}
-        isAgentsLoading={agentsQuery.isLoading}
-        isTerminalsLoading={terminalsQuery.isLoading}
+        agents={agents.data ?? []}
+        terminals={terminals.data ?? []}
+        isLoading={agents.isLoading || terminals.isLoading}
         onEditAgent={setEditingAgent}
         onEditTerminal={setEditingTerminal}
         onDeleteAgent={handleDeleteAgent}
         onDeleteTerminal={handleDeleteTerminal}
         onDeleteCommand={handleDeleteCommand}
-        onAddCommand={setCommandDialogOpen.bind(null, true)}
+        onAddCommand={() => setCommandDialogOpen(true)}
         onNavigateTerminal={handleNavigateTerminal}
+        onCreateAgent={handleCreateAgent}
+        onCreateTerminal={handleCreateTerminal}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -86,19 +132,21 @@ function RouteComponent() {
       </SidebarInset>
 
       <NewCommandDialog
-        projectId={projectId}
         open={commandDialogOpen}
         onOpenChange={setCommandDialogOpen}
+        onCreate={handleCreateCommand}
       />
       <EditAgentDialog
         agent={editingAgent}
         open={editingAgent !== null}
         onOpenChange={(open) => !open && setEditingAgent(null)}
+        onUpdate={handleUpdateAgent}
       />
       <EditTerminalDialog
         terminal={editingTerminal}
         open={editingTerminal !== null}
         onOpenChange={(open) => !open && setEditingTerminal(null)}
+        onUpdate={handleUpdateTerminal}
       />
     </SidebarProvider>
   );

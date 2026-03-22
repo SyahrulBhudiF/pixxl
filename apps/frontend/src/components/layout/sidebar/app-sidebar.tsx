@@ -111,13 +111,15 @@ function createMenuItems<T extends { id: string; name: string }>({
   }
 
   return [
-    ...items.map((item) => ({
-      title: item.name,
-      url: "#",
-      id: item.id,
-      onEdit: onEdit ? () => onEdit(item) : undefined,
-      onDelete: onDelete ? () => onDelete(item) : undefined,
-    })),
+    ...items
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((item) => ({
+        title: item.name,
+        url: "#",
+        id: item.id,
+        onEdit: onEdit ? () => onEdit(item) : undefined,
+        onDelete: onDelete ? () => onDelete(item) : undefined,
+      })),
     addItem,
   ];
 }
@@ -190,7 +192,7 @@ export function AppSidebar({
         icon: <RiCommandLine />,
         items: createMenuItems({
           items: commands,
-          onAdd: onAddCommand ?? (() => {}),
+          onAdd: onAddCommand ?? (() => { }),
           onEdit: onEditCommand,
           onDelete: onDeleteCommand,
           isLoading: isCommandsLoading,

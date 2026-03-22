@@ -1,18 +1,26 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { AgentService } from "./service";
 
 export const createAgentRpc = os.agent.createAgent.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* AgentService;
-    return yield* service.createAgent(input);
+    const agent = yield* service.createAgent(input);
+    return Option.match(agent, {
+      onSome: (agent) => agent,
+      onNone: () => null,
+    });
   }).pipe(Effect.provide(AgentService.live), Effect.runPromise),
 );
 
 export const updateAgentRpc = os.agent.updateAgent.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* AgentService;
-    return yield* service.updateAgent(input);
+    const agent = yield* service.updateAgent(input);
+    return Option.match(agent, {
+      onSome: (agent) => agent,
+      onNone: () => null,
+    });
   }).pipe(Effect.provide(AgentService.live), Effect.runPromise),
 );
 

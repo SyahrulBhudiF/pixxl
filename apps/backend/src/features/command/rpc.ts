@@ -1,11 +1,15 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { CommandService } from "./service";
 
 export const createCommandRpc = os.command.createCommand.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* CommandService;
-    return yield* service.createCommand(input);
+    const command = yield* service.createCommand(input);
+    return Option.match(command, {
+      onSome: (command) => command,
+      onNone: () => null,
+    });
   }).pipe(Effect.provide(CommandService.live), Effect.runPromise),
 );
 

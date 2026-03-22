@@ -11,11 +11,11 @@ import {
 
 export const createAgentContract = oc
   .input(Schema.toStandardSchemaV1(CreateAgentInputSchema))
-  .output(Schema.toStandardSchemaV1(AgentMetadataSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
 
 export const updateAgentContract = oc
   .input(Schema.toStandardSchemaV1(UpdateAgentInputSchema))
-  .output(Schema.toStandardSchemaV1(AgentMetadataSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(AgentMetadataSchema)));
 
 export const deleteAgentContract = oc
   .input(Schema.toStandardSchemaV1(DeleteAgentInputSchema))

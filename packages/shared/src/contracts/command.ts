@@ -10,7 +10,7 @@ import {
 
 export const createCommandContract = oc
   .input(Schema.toStandardSchemaV1(CreateCommandInputSchema))
-  .output(Schema.toStandardSchemaV1(CommandMetadataSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(CommandMetadataSchema)));
 
 export const deleteCommandContract = oc
   .input(Schema.toStandardSchemaV1(DeleteCommandInputSchema))

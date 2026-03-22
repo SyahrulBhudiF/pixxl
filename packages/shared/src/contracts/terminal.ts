@@ -11,11 +11,11 @@ import {
 
 export const createTerminalContract = oc
   .input(Schema.toStandardSchemaV1(CreateTerminalInputSchema))
-  .output(Schema.toStandardSchemaV1(TerminalMetadataSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(TerminalMetadataSchema)));
 
 export const updateTerminalContract = oc
   .input(Schema.toStandardSchemaV1(UpdateTerminalInputSchema))
-  .output(Schema.toStandardSchemaV1(TerminalMetadataSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(TerminalMetadataSchema)));
 
 export const deleteTerminalContract = oc
   .input(Schema.toStandardSchemaV1(DeleteTerminalInputSchema))

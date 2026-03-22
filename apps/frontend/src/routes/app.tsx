@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
@@ -19,17 +19,21 @@ import { useDeleteCommand } from "@/features/command/hooks/use-command";
 import { NewCommandDialog } from "@/features/command/components/new-command-dialog";
 import { EditAgentDialog } from "@/features/agent/components/edit-agent-dialog";
 import { EditTerminalDialog } from "@/features/terminal/components/edit-terminal-dialog";
-import type { AgentMetadata, TerminalMetadata } from "@pixxl/shared";
+import type { AgentMetadata, CommandMetadata, TerminalMetadata } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const projectId = useParams({ from: "/app/$projectId/" }).projectId;
-  const navigate = useNavigate({ from: "/app/$projectId/" });
-  const agentsQuery = useListAgents({ projectId });
-  const terminalsQuery = useListTerminals({ projectId });
+  const projectId = useParams({
+    // this should be safe as this is a shell route, user will always be at least in /$projectId/
+    select: (p) => p.projectId as string,
+    strict: false,
+  });
+  const navigate = useNavigate();
+  const agentsQuery = useListAgents({ projectId: projectId });
+  const terminalsQuery = useListTerminals({ projectId: projectId });
   const deleteAgent = useDeleteAgent();
   const deleteTerminal = useDeleteTerminal();
   const deleteCommand = useDeleteCommand();
@@ -38,12 +42,24 @@ function RouteComponent() {
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
   const [editingTerminal, setEditingTerminal] = useState<TerminalMetadata | null>(null);
 
-  const handleNavigateTerminal = (terminal: TerminalMetadata) => {
-    navigate({
+  function handleNavigateTerminal(terminal: TerminalMetadata) {
+    void navigate({
       to: "/app/$projectId/terminal/$terminalId",
-      params: { projectId, terminalId: terminal.id },
+      params: { projectId: projectId, terminalId: terminal.id },
     });
-  };
+  }
+
+  function handleDeleteAgent(agent: AgentMetadata) {
+    deleteAgent.mutate({ projectId: projectId, id: agent.id });
+  }
+
+  function handleDeleteTerminal(terminal: TerminalMetadata) {
+    deleteTerminal.mutate({ projectId: projectId, id: terminal.id });
+  }
+
+  function handleDeleteCommand(command: CommandMetadata) {
+    deleteCommand.mutate({ projectId: projectId, id: command.id });
+  }
 
   return (
     <SidebarProvider>
@@ -55,10 +71,10 @@ function RouteComponent() {
         isTerminalsLoading={terminalsQuery.isLoading}
         onEditAgent={setEditingAgent}
         onEditTerminal={setEditingTerminal}
-        onDeleteAgent={(agent) => deleteAgent.mutate({ projectId, id: agent.id })}
-        onDeleteTerminal={(terminal) => deleteTerminal.mutate({ projectId, id: terminal.id })}
-        onDeleteCommand={(command) => deleteCommand.mutate({ projectId, id: command.id })}
-        onAddCommand={() => setCommandDialogOpen(true)}
+        onDeleteAgent={handleDeleteAgent}
+        onDeleteTerminal={handleDeleteTerminal}
+        onDeleteCommand={handleDeleteCommand}
+        onAddCommand={setCommandDialogOpen.bind(null, true)}
         onNavigateTerminal={handleNavigateTerminal}
       />
       <SidebarInset>

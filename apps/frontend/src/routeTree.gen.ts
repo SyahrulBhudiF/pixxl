@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AppProjectIdIndexRouteImport } from './routes/app/$projectId/index'
+import { Route as AppProjectIdDashboardIndexRouteImport } from './routes/app/$projectId/dashboard.index'
 import { Route as AppProjectIdTerminalTerminalIdIndexRouteImport } from './routes/app/$projectId/terminal/$terminalId.index'
 
 const AppRoute = AppRouteImport.update({
@@ -24,11 +26,22 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProjectIdIndexRoute = AppProjectIdIndexRouteImport.update({
   id: '/$projectId/',
   path: '/$projectId/',
   getParentRoute: () => AppRoute,
 } as any)
+const AppProjectIdDashboardIndexRoute =
+  AppProjectIdDashboardIndexRouteImport.update({
+    id: '/$projectId/dashboard/',
+    path: '/$projectId/dashboard/',
+    getParentRoute: () => AppRoute,
+  } as any)
 const AppProjectIdTerminalTerminalIdIndexRoute =
   AppProjectIdTerminalTerminalIdIndexRouteImport.update({
     id: '/$projectId/terminal/$terminalId/',
@@ -39,20 +52,25 @@ const AppProjectIdTerminalTerminalIdIndexRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/app/': typeof AppIndexRoute
   '/app/$projectId/': typeof AppProjectIdIndexRoute
+  '/app/$projectId/dashboard/': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId/': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AppRouteWithChildren
+  '/app': typeof AppIndexRoute
   '/app/$projectId': typeof AppProjectIdIndexRoute
+  '/app/$projectId/dashboard': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
+  '/app/': typeof AppIndexRoute
   '/app/$projectId/': typeof AppProjectIdIndexRoute
+  '/app/$projectId/dashboard/': typeof AppProjectIdDashboardIndexRoute
   '/app/$projectId/terminal/$terminalId/': typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -60,15 +78,24 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
+    | '/app/'
     | '/app/$projectId/'
+    | '/app/$projectId/dashboard/'
     | '/app/$projectId/terminal/$terminalId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/app/$projectId' | '/app/$projectId/terminal/$terminalId'
+  to:
+    | '/'
+    | '/app'
+    | '/app/$projectId'
+    | '/app/$projectId/dashboard'
+    | '/app/$projectId/terminal/$terminalId'
   id:
     | '__root__'
     | '/'
     | '/app'
+    | '/app/'
     | '/app/$projectId/'
+    | '/app/$projectId/dashboard/'
     | '/app/$projectId/terminal/$terminalId/'
   fileRoutesById: FileRoutesById
 }
@@ -93,11 +120,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/$projectId/': {
       id: '/app/$projectId/'
       path: '/$projectId'
       fullPath: '/app/$projectId/'
       preLoaderRoute: typeof AppProjectIdIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/$projectId/dashboard/': {
+      id: '/app/$projectId/dashboard/'
+      path: '/$projectId/dashboard'
+      fullPath: '/app/$projectId/dashboard/'
+      preLoaderRoute: typeof AppProjectIdDashboardIndexRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/$projectId/terminal/$terminalId/': {
@@ -111,12 +152,16 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppIndexRoute: typeof AppIndexRoute
   AppProjectIdIndexRoute: typeof AppProjectIdIndexRoute
+  AppProjectIdDashboardIndexRoute: typeof AppProjectIdDashboardIndexRoute
   AppProjectIdTerminalTerminalIdIndexRoute: typeof AppProjectIdTerminalTerminalIdIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppIndexRoute: AppIndexRoute,
   AppProjectIdIndexRoute: AppProjectIdIndexRoute,
+  AppProjectIdDashboardIndexRoute: AppProjectIdDashboardIndexRoute,
   AppProjectIdTerminalTerminalIdIndexRoute:
     AppProjectIdTerminalTerminalIdIndexRoute,
 }

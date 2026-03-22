@@ -91,7 +91,6 @@ export function AppSidebar({
         title: "Agents",
         url: "#",
         icon: <RiRobot2Line />,
-        isActive: true,
         items: createMenuItems({
           items: agents,
           onAdd: onCreateAgent ? () => onCreateAgent(`Agent ${agents.length + 1}`) : undefined,
@@ -111,10 +110,10 @@ export function AppSidebar({
               EmptyItem,
               onCreateTerminal
                 ? {
-                    title: "+ Add Terminal",
-                    url: "#",
-                    onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-                  }
+                  title: "+ Add Terminal",
+                  url: "#",
+                  onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
+                }
                 : EmptyItem,
             ];
           }
@@ -129,10 +128,10 @@ export function AppSidebar({
             })),
             onCreateTerminal
               ? {
-                  title: "+ Add Terminal",
-                  url: "#",
-                  onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
-                }
+                title: "+ Add Terminal",
+                url: "#",
+                onClick: () => onCreateTerminal(`Terminal ${terminals.length + 1}`),
+              }
               : EmptyItem,
           ];
         })(),

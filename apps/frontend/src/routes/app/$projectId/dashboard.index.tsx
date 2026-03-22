@@ -141,10 +141,14 @@ function DashboardPage() {
       </section>
 
       <section className="flex gap-2">
-        <StatPill icon={RiTerminalBoxLine} label="TER" value={terminalsAll.data?.length ?? 0} />
-        <StatPill icon={RiRobot2Line} label="AGT" value={agentsAll.data?.length ?? 0} />
-        <StatPill icon={RiCommandLine} label="CMD" value={commandsAll.data?.length ?? 0} />
-        <StatPill icon={RiStackLine} label="KB" value={mockNotes.length} />
+        <StatPill
+          icon={RiTerminalBoxLine}
+          label="TERMINALS"
+          value={terminalsAll.data?.length ?? 0}
+        />
+        <StatPill icon={RiRobot2Line} label="AGENTS" value={agentsAll.data?.length ?? 0} />
+        <StatPill icon={RiCommandLine} label="COMANDS" value={commandsAll.data?.length ?? 0} />
+        <StatPill icon={RiStackLine} label="KNOWLEDGE" value={mockNotes.length} />
       </section>
 
       {totalResources === 0 && (

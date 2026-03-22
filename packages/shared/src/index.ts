@@ -3,4 +3,7 @@ export * from "./schema/command";
 export * from "./schema/config";
 export * from "./schema/project";
 export * from "./schema/terminal";
+export * from "./services";
+export * from "./types";
+export * from "./utils";
 export * from "./router";

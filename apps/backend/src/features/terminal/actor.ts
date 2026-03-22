@@ -41,7 +41,7 @@ export const terminalMachine = setup({
         terminal: {
           cols: 80,
           rows: 24,
-          data(term, data) {
+          data(_term, data) {
             const output = new Uint8Array(data);
             context.clients.forEach((client) => {
               if (!client.closed) {

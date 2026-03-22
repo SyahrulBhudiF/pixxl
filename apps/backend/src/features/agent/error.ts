@@ -1,4 +1,5 @@
 import { Effect, Schema } from "effect";
+import { EntityServiceError } from "@pixxl/shared";
 
 export class AgentError extends Schema.TaggedErrorClass<AgentError>()("AgentError", {
   message: Schema.String,
@@ -6,4 +7,7 @@ export class AgentError extends Schema.TaggedErrorClass<AgentError>()("AgentErro
 }) {
   static mapTo = (message: string) =>
     Effect.mapError((cause) => new AgentError({ message, cause }));
+
+  static fromEntity = (e: EntityServiceError) =>
+    new AgentError({ message: e.message, cause: e.cause });
 }

@@ -1,8 +1,5 @@
-type TerminalMessage = { type: "closed"; reason: string } | { type: "error"; message: string };
-
-type TerminalClientMessage =
-  | { type: "input"; data: string }
-  | { type: "resize"; cols: number; rows: number };
+import { WS_URL } from "@/lib/rpc";
+import type { TerminalMessage, TerminalClientMessage } from "@pixxl/shared/types";
 
 type TerminalEventHandlers = {
   onOutput: (data: Uint8Array) => void;
@@ -11,9 +8,7 @@ type TerminalEventHandlers = {
 };
 
 export function createTerminalConnection(terminalId: string, handlers: TerminalEventHandlers) {
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  const host = window.location.host;
-  const ws = new WebSocket(`${protocol}//${host}/terminal/${terminalId}`);
+  const ws = new WebSocket(`${WS_URL}/${terminalId}`);
 
   ws.binaryType = "arraybuffer";
 
@@ -40,7 +35,7 @@ export function createTerminalConnection(terminalId: string, handlers: TerminalE
           break;
       }
     } catch {
-      // Ignore malformed messages
+      console.error("[Terminal] Failed to parse message:", event.data);
     }
   };
 

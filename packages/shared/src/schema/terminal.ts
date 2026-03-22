@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 
 export const CreateTerminalInputSchema = Schema.Struct({
+  id: Schema.String,
   projectId: Schema.String,
   name: Schema.NonEmptyString,
 });

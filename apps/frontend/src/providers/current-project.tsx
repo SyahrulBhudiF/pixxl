@@ -10,19 +10,19 @@ export const currentProjectIdAtom = atom<string | null>(null);
  * TanStack Query caches when switching projects.
  */
 export function CurrentProjectSync() {
-  const params = useParams({ from: "/app/$projectId/dashboard/" });
+  const projectIdFromParams = useParams({ strict: false, select: (p) => p.projectId });
   const [projectId, setProjectId] = useAtom(currentProjectIdAtom);
 
   useEffect(() => {
-    if (params.projectId && params.projectId !== projectId) {
+    if (projectIdFromParams && projectIdFromParams !== projectId) {
       // Invalidate all project-scoped queries when switching projects
       void queryClient.invalidateQueries({ queryKey: ["terminals"] });
       void queryClient.invalidateQueries({ queryKey: ["agents"] });
       void queryClient.invalidateQueries({ queryKey: ["commands"] });
 
-      setProjectId(params.projectId);
+      setProjectId(projectIdFromParams);
     }
-  }, [params.projectId, projectId, setProjectId]);
+  }, [projectIdFromParams, projectId, setProjectId]);
 
   return null;
 }

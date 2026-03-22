@@ -1,202 +1,134 @@
-import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
-import {
-  AgentMetadata,
-  AgentMetadataSchema,
-  CreateAgentInput,
-  UpdateAgentInput,
-  ListAgentsInput,
-} from "@pixxl/shared";
+import { Effect, Layer, Option, ServiceMap } from "effect";
+import { AgentMetadata, AgentMetadataSchema, CreateAgentInput, EntityService } from "@pixxl/shared";
 import { AgentError } from "./error";
 import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
-import { generateId } from "@/utils/id";
 
-type AgentServiceShape = {
-  readonly createAgent: (
-    input: CreateAgentInput,
-  ) => Effect.Effect<Option.Option<AgentMetadata>, AgentError>;
-  readonly updateAgent: (
-    input: UpdateAgentInput,
-  ) => Effect.Effect<Option.Option<AgentMetadata>, AgentError>;
-  readonly deleteAgent: (input: {
-    projectId: string;
-    id: string;
-  }) => Effect.Effect<boolean, AgentError>;
-  readonly listAgents: (input: ListAgentsInput) => Effect.Effect<AgentMetadata[], AgentError>;
-};
+export class AgentService extends ServiceMap.Service<AgentService>()("@pixxl/AgentService", {
+  make: Effect.gen(function* () {
+    const entity = yield* EntityService;
+    const project = yield* ProjectService;
 
-export class AgentService extends ServiceMap.Service<AgentService, AgentServiceShape>()(
-  "@pixxl/AgentService",
-  {
-    make: Effect.gen(function* () {
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const projectService = yield* ProjectService;
+    const agents = entity.forEntity<AgentMetadata, CreateAgentInput>({
+      directoryName: "agents",
+      schema: AgentMetadataSchema,
+      create: ({ id, now, name }) => ({
+        id,
+        name,
+        createdAt: now,
+        updatedAt: now,
+      }),
+      update: (current, { now, name }) => ({
+        ...current,
+        name,
+        updatedAt: now,
+      }),
+    });
 
-      const decodeAgent = Schema.decodeUnknownEffect(Schema.fromJsonString(AgentMetadataSchema));
+    const createAgent = Effect.fn("AgentService.createAgent")(function* (input: CreateAgentInput) {
+      const projectResult = yield* project
+        .getProjectDetail({ id: input.projectId })
+        .pipe(AgentError.mapTo(`Failed to get project`));
 
-      const createAgent = Effect.fn("AgentService.createAgent")(function* (
-        input: CreateAgentInput,
-      ) {
-        const project = yield* projectService
-          .getProjectDetail({ id: input.projectId })
-          .pipe(AgentError.mapTo(`Failed to get project with id ${input.projectId}`));
+      if (Option.isNone(projectResult)) {
+        return Option.none();
+      }
 
-        if (Option.isNone(project)) {
-          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
-          return Option.none();
-        }
-
-        const agentsPath = path.join(project.value.path, "agents");
-        const exists = yield* fs
-          .exists(agentsPath)
-          .pipe(AgentError.mapTo(`Failed to check path at ${agentsPath}`));
-
-        if (!exists) {
-          yield* fs
-            .makeDirectory(agentsPath, { recursive: true })
-            .pipe(AgentError.mapTo(`Failed to create directory at ${agentsPath}`));
-        }
-
-        const id = generateId();
-        const now = new Date().toISOString();
-        const metadata: AgentMetadata = {
-          id,
+      return yield* agents
+        .create({
+          projectPath: projectResult.value.path,
+          id: input.id,
           name: input.name,
-          createdAt: now,
-          updatedAt: now,
-        };
+        })
+        .pipe(Effect.map(Option.some), Effect.mapError(AgentError.fromEntity));
+    });
 
-        yield* fs
-          .writeFileString(path.join(agentsPath, `${id}.json`), JSON.stringify(metadata, null, 2))
-          .pipe(
-            AgentError.mapTo(
-              `Failed to create agent with id ${id} at path ${path.join(agentsPath, `${id}.json`)}`,
-            ),
-          );
+    const getAgent = Effect.fn("AgentService.getAgent")(function* (input: {
+      projectId: string;
+      id: string;
+    }) {
+      const projectResult = yield* project
+        .getProjectDetail({ id: input.projectId })
+        .pipe(AgentError.mapTo(`Failed to get project`));
 
-        return Option.some(metadata);
-      });
+      if (Option.isNone(projectResult)) {
+        return Option.none();
+      }
 
-      const updateAgent = Effect.fn("AgentService.updateAgent")(function* (
-        input: UpdateAgentInput,
-      ) {
-        const project = yield* projectService
-          .getProjectDetail({ id: input.projectId })
-          .pipe(AgentError.mapTo(`Failed to get project with id ${input.projectId}`));
+      return yield* agents
+        .get({
+          projectPath: projectResult.value.path,
+          id: input.id,
+        })
+        .pipe(Effect.mapError(AgentError.fromEntity));
+    });
 
-        if (Option.isNone(project)) {
-          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
-          return Option.none();
-        }
+    const updateAgent = Effect.fn("AgentService.updateAgent")(function* (input: {
+      projectId: string;
+      id: string;
+      name: string;
+    }) {
+      const projectResult = yield* project
+        .getProjectDetail({ id: input.projectId })
+        .pipe(AgentError.mapTo(`Failed to get project`));
 
-        const filePath = path.join(project.value.path, "agents", `${input.id}.json`);
-        const fileExists = yield* fs
-          .exists(filePath)
-          .pipe(AgentError.mapTo(`Failed to check if agent exists at path ${filePath}`));
+      if (Option.isNone(projectResult)) {
+        return Option.none();
+      }
 
-        if (!fileExists) {
-          yield* new AgentError({ message: `Agent with id ${input.id} not found` });
-        }
-
-        const content = yield* fs
-          .readFileString(filePath)
-          .pipe(AgentError.mapTo(`Failed to read agent at path ${filePath}`));
-        const decodeUnknown = Schema.decodeUnknownEffect(
-          Schema.fromJsonString(AgentMetadataSchema),
-        );
-        const current = yield* decodeUnknown(content).pipe(
-          AgentError.mapTo(`Failed to decode agent`),
-        );
-
-        const updated: AgentMetadata = {
-          ...current,
+      return yield* agents
+        .update({
+          projectPath: projectResult.value.path,
+          id: input.id,
           name: input.name,
-          updatedAt: new Date().toISOString(),
-        };
+        })
+        .pipe(Effect.mapError(AgentError.fromEntity));
+    });
 
-        yield* fs
-          .writeFileString(filePath, JSON.stringify(updated, null, 2))
-          .pipe(AgentError.mapTo(`Failed to update agent with id ${input.id} at path ${filePath}`));
+    const deleteAgent = Effect.fn("AgentService.deleteAgent")(function* (input: {
+      projectId: string;
+      id: string;
+    }) {
+      const projectResult = yield* project
+        .getProjectDetail({ id: input.projectId })
+        .pipe(AgentError.mapTo(`Failed to get project`));
 
-        return Option.some(updated);
-      });
+      if (Option.isNone(projectResult)) {
+        return Option.none<boolean>();
+      }
 
-      const deleteAgent = Effect.fn("AgentService.deleteAgent")(function* (input: {
-        projectId: string;
-        id: string;
-      }) {
-        const project = yield* projectService
-          .getProjectDetail({ id: input.projectId })
-          .pipe(AgentError.mapTo(`Failed to get project with id ${input.projectId}`));
+      return yield* agents
+        .delete({
+          projectPath: projectResult.value.path,
+          id: input.id,
+        })
+        .pipe(Effect.mapError(AgentError.fromEntity));
+    });
 
-        if (Option.isNone(project)) {
-          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
-          return false;
-        }
+    const listAgents = Effect.fn("AgentService.listAgents")(function* (input: {
+      projectId: string;
+    }) {
+      const projectResult = yield* project
+        .getProjectDetail({ id: input.projectId })
+        .pipe(AgentError.mapTo(`Failed to get project`));
 
-        const filePath = path.join(project.value.path, "agents", `${input.id}.json`);
-        const fileExists = yield* fs
-          .exists(filePath)
-          .pipe(AgentError.mapTo(`Failed to check if agent exists at path ${filePath}`));
+      if (Option.isNone(projectResult)) {
+        return [];
+      }
 
-        if (!fileExists) {
-          yield* new AgentError({ message: `Agent with id ${input.id} not found` });
-          return false;
-        }
+      return yield* agents
+        .list({
+          projectPath: projectResult.value.path,
+        })
+        .pipe(Effect.mapError(AgentError.fromEntity));
+    });
 
-        yield* fs
-          .remove(filePath)
-          .pipe(AgentError.mapTo(`Failed to delete agent with id ${input.id} at path ${filePath}`));
-
-        return true;
-      });
-
-      const listAgents = Effect.fn("AgentService.listAgents")(function* (input: ListAgentsInput) {
-        const project = yield* projectService
-          .getProjectDetail({ id: input.projectId })
-          .pipe(AgentError.mapTo(`Failed to get project with id ${input.projectId}`));
-
-        if (Option.isNone(project)) {
-          yield* new AgentError({ message: `Project with id ${input.projectId} not found` });
-          return [];
-        }
-
-        const agentsPath = path.join(project.value.path, "agents");
-        const exists = yield* fs
-          .exists(agentsPath)
-          .pipe(AgentError.mapTo(`Failed to check if agents path exists at path ${agentsPath}`));
-
-        if (!exists) return [];
-
-        const entries = yield* fs
-          .readDirectory(agentsPath)
-          .pipe(AgentError.mapTo(`Failed to read agents directory at path ${agentsPath}`));
-        const agentFiles = entries.filter((e) => e.endsWith(".json"));
-
-        if (agentFiles.length === 0) return [];
-
-        const agents = yield* Effect.all(
-          agentFiles.map((file) =>
-            fs.readFileString(path.join(agentsPath, file)).pipe(
-              // TODO: ignore invalid configs for now, might need better handling
-              Effect.flatMap((content) => decodeAgent(content).pipe(Effect.mapError(() => null))),
-              AgentError.mapTo(`Failed to read agent at path ${path.join(agentsPath, file)}`),
-            ),
-          ),
-          { concurrency: "unbounded" },
-        );
-
-        return agents.filter((agent) => agent !== null);
-      });
-
-      return { createAgent, updateAgent, deleteAgent, listAgents } as const;
-    }),
-  },
-) {
-  static layer = Layer.effect(AgentService, AgentService.make);
-  static live = AgentService.layer.pipe(
+    return { createAgent, getAgent, updateAgent, deleteAgent, listAgents } as const;
+  }),
+}) {
+  static layer = Layer.effect(AgentService, AgentService.make).pipe(
+    Layer.provideMerge(EntityService.layer),
     Layer.provideMerge(ProjectService.layer),
     Layer.provideMerge(ConfigService.layer),
     Layer.provideMerge(Layer.mergeAll(BunFileSystem.layer, BunPath.layer)),

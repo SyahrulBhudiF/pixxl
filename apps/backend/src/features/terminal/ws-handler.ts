@@ -1,5 +1,8 @@
+import { Effect } from "effect";
 import { terminalManager } from "./manager";
+import { ConfigService } from "../config/service";
 import type { TerminalActor, Client } from "./actor";
+import type { TerminalClientMessage } from "@pixxl/shared/types";
 
 interface TerminalWsData {
   type: "terminal";
@@ -8,31 +11,31 @@ interface TerminalWsData {
   client: Client;
 }
 
-interface TerminalMessage {
-  type: "input" | "resize";
-  data?: string;
-  cols?: number;
-  rows?: number;
-}
-
 export function handleTerminalConnection(terminalId: string, ws: Bun.ServerWebSocket<unknown>) {
-  const actor = terminalManager.getOrCreate({
-    terminalId,
-    shell: "/bin/zsh",
+  Effect.runPromise(
+    Effect.gen(function* () {
+      const service = yield* ConfigService;
+      return yield* service.loadConfig();
+    }).pipe(Effect.provide(ConfigService.live)),
+  ).then((cfg) => {
+    const actor = terminalManager.getOrCreate({
+      terminalId,
+      shell: cfg.terminal.shell,
+    });
+
+    const client: Client = {
+      send: (data) => ws.send(data),
+      closed: false,
+      close: () => ws.close(),
+    };
+
+    actor.send({ type: "CLIENT_CONNECT", client });
+
+    // Extend ws.data with actor and client (preserve terminalId from initial data)
+    const data = ws.data as TerminalWsData;
+    data.actor = actor;
+    data.client = client;
   });
-
-  const client: Client = {
-    send: (data) => ws.send(data),
-    closed: false,
-    close: () => ws.close(),
-  };
-
-  actor.send({ type: "CLIENT_CONNECT", client });
-
-  // Extend ws.data with actor and client (preserve terminalId from initial data)
-  const data = ws.data as TerminalWsData;
-  data.actor = actor;
-  data.client = client;
 }
 
 export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message: string) {
@@ -41,7 +44,7 @@ export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message:
   if (!data?.actor || !data?.client) return;
 
   try {
-    const parsed: TerminalMessage = JSON.parse(message);
+    const parsed: TerminalClientMessage = JSON.parse(message);
 
     switch (parsed.type) {
       case "input":
@@ -56,7 +59,7 @@ export function handleTerminalMessage(ws: Bun.ServerWebSocket<unknown>, message:
         break;
     }
   } catch {
-    // Ignore malformed messages
+    console.error("[Terminal] Failed to parse message:", message);
   }
 }
 

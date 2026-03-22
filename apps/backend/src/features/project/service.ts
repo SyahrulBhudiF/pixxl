@@ -10,7 +10,6 @@ import { ProjectError } from "./error";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { slugify } from "@/utils/slug";
-import { generateId } from "@/utils/id";
 
 type ProjectServiceShape = {
   readonly createProject: (
@@ -64,7 +63,7 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
 
         const now = new Date().toISOString();
         const metadata: ProjectMetadata = {
-          id: generateId(),
+          id: input.id,
           name: input.name,
           path: projectPath,
           createdAt: now,

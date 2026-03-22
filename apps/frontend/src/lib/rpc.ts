@@ -3,7 +3,7 @@ import { ContractRouterClient } from "@orpc/contract";
 import { RPCLink } from "@orpc/client/websocket";
 import { routerContract } from "@pixxl/shared";
 
-export const WS_URL = "ws://localhost:3000";
+export const WS_URL = "ws://localhost:3000/terminal";
 
 const websocket = new WebSocket(WS_URL);
 

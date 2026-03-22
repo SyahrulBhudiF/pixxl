@@ -1,17 +1,18 @@
 import { Schema } from "effect";
 
 export const CreateCommandInputSchema = Schema.Struct({
+  id: Schema.String,
   projectId: Schema.String,
   name: Schema.NonEmptyString,
   command: Schema.String,
-  description: Schema.String,
+  description: Schema.optionalKey(Schema.String),
 });
 
 export const CommandMetadataSchema = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
   command: Schema.String,
-  description: Schema.String,
+  description: Schema.optionalKey(Schema.String),
   createdAt: Schema.String,
   updatedAt: Schema.String,
 });

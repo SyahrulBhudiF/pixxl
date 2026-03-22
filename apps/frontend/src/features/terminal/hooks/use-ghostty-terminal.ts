@@ -1,6 +1,7 @@
 import { useEffectEvent, useRef } from "react";
 import { init, Terminal, FitAddon } from "ghostty-web";
-import { rpc, WS_URL } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
+import { WS_URL } from "@/lib/rpc";
 
 export interface GhosttyTerminalOptions {
   terminalId: string;
@@ -69,8 +70,8 @@ export function useGhosttyTerminal(options: GhosttyTerminalOptions): UseGhosttyT
       return;
     }
 
-    const url = `${WS_URL}${result.websocketUrl}`;
-    const ws = new WebSocket(url);
+    const wsUrl = `${WS_URL}/${options.terminalId}`;
+    const ws = new WebSocket(wsUrl);
     ws.binaryType = "arraybuffer";
     wsRef.current = ws;
 

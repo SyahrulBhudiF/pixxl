@@ -11,6 +11,7 @@ import { ProjectService } from "../project/service";
 import { ConfigService } from "../config/service";
 import { BunFileSystem, BunPath } from "@effect/platform-bun";
 import { generateId } from "@/utils/id";
+import { terminalManager } from "./manager";
 
 type TerminalServiceShape = {
   readonly createTerminal: (
@@ -156,6 +157,9 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           yield* new TerminalError({ message: `Terminal with id ${input.id} not found` });
           return false;
         }
+
+        // Close the terminal actor if it exists
+        terminalManager.remove(input.id);
 
         yield* fs
           .remove(filePath)

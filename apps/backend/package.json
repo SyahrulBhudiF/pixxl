@@ -11,6 +11,7 @@
     "@orpc/server": "^1.13.9",
     "@pixxl/shared": "workspace:*",
     "effect": "catalog:",
-    "nanoid": "^5.1.7"
+    "nanoid": "^5.1.7",
+    "xstate": "^5.28.0"
   }
 }

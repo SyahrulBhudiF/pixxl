@@ -40,6 +40,7 @@ interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   onDeleteTerminal?: (terminal: TerminalMetadata) => void;
   onDeleteCommand?: (command: CommandMetadata) => void;
   onAddCommand?: () => void;
+  onNavigateTerminal?: (terminal: TerminalMetadata) => void;
 }
 
 // This is sample data.
@@ -139,6 +140,7 @@ export function AppSidebar({
   onDeleteTerminal,
   onDeleteCommand,
   onAddCommand,
+  onNavigateTerminal,
   ...props
 }: AppSidebarProps) {
   const createAgent = useCreateAgent();
@@ -177,14 +179,24 @@ export function AppSidebar({
         title: "Terminals",
         url: "#",
         icon: <RiTerminalBoxLine />,
-        items: createMenuItems({
-          items: terminals,
-          onAdd: handleAddTerminal,
-          onEdit: onEditTerminal,
-          onDelete: onDeleteTerminal,
-          isLoading: isTerminalsLoading,
-          addLabel: "Terminal",
-        }),
+        items: (() => {
+          const terminalItems: NavSubItem[] =
+            isTerminalsLoading || terminals.length === 0
+              ? [EmptyItem]
+              : terminals
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((terminal) => ({
+                    title: terminal.name,
+                    url: "#",
+                    onClick: onNavigateTerminal ? () => onNavigateTerminal(terminal) : undefined,
+                    onEdit: onEditTerminal ? () => onEditTerminal(terminal) : undefined,
+                    onDelete: onDeleteTerminal ? () => onDeleteTerminal(terminal) : undefined,
+                  }));
+          return [
+            ...terminalItems,
+            { title: "+ Add Terminal", url: "#", onClick: handleAddTerminal },
+          ];
+        })(),
       },
       {
         title: "Commands",
@@ -192,7 +204,7 @@ export function AppSidebar({
         icon: <RiCommandLine />,
         items: createMenuItems({
           items: commands,
-          onAdd: onAddCommand ?? (() => { }),
+          onAdd: onAddCommand ?? (() => {}),
           onEdit: onEditCommand,
           onDelete: onDeleteCommand,
           isLoading: isCommandsLoading,
@@ -216,6 +228,7 @@ export function AppSidebar({
       onDeleteTerminal,
       onDeleteCommand,
       onAddCommand,
+      onNavigateTerminal,
     ],
   );
 

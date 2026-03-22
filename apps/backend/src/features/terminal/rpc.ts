@@ -1,6 +1,8 @@
 import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { TerminalService } from "./service";
+import { terminalManager } from "./manager";
+import { ConfigService } from "../config/service";
 
 export const createTerminalRpc = os.terminal.createTerminal.handler(({ input }) =>
   Effect.gen(function* () {
@@ -36,4 +38,18 @@ export const listTerminalsRpc = os.terminal.listTerminals.handler(({ input }) =>
     const service = yield* TerminalService;
     return yield* service.listTerminals(input);
   }).pipe(Effect.provide(TerminalService.live), Effect.runPromise),
+);
+
+export const connectTerminalRpc = os.terminal.connectTerminal.handler(({ input }) =>
+  Effect.gen(function* () {
+    const configService = yield* ConfigService;
+    const config = yield* configService.loadConfig();
+
+    terminalManager.getOrCreate({
+      terminalId: input.id,
+      shell: config.terminal.shell,
+    });
+
+    return { success: true, websocketUrl: `/terminal/${input.id}` };
+  }).pipe(Effect.provide(ConfigService.live), Effect.runPromise),
 );

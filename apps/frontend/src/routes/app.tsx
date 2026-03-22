@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, useParams } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
@@ -27,6 +27,7 @@ export const Route = createFileRoute("/app")({
 
 function RouteComponent() {
   const projectId = useParams({ from: "/app/$projectId/" }).projectId;
+  const navigate = useNavigate({ from: "/app/$projectId/" });
   const agentsQuery = useListAgents({ projectId });
   const terminalsQuery = useListTerminals({ projectId });
   const deleteAgent = useDeleteAgent();
@@ -36,6 +37,13 @@ function RouteComponent() {
   const [commandDialogOpen, setCommandDialogOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AgentMetadata | null>(null);
   const [editingTerminal, setEditingTerminal] = useState<TerminalMetadata | null>(null);
+
+  const handleNavigateTerminal = (terminal: TerminalMetadata) => {
+    navigate({
+      to: "/app/$projectId/terminal/$terminalId",
+      params: { projectId, terminalId: terminal.id },
+    });
+  };
 
   return (
     <SidebarProvider>
@@ -51,6 +59,7 @@ function RouteComponent() {
         onDeleteTerminal={(terminal) => deleteTerminal.mutate({ projectId, id: terminal.id })}
         onDeleteCommand={(command) => deleteCommand.mutate({ projectId, id: command.id })}
         onAddCommand={() => setCommandDialogOpen(true)}
+        onNavigateTerminal={handleNavigateTerminal}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

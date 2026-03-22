@@ -16,6 +16,7 @@ import {
   updateTerminalContract,
   deleteTerminalContract,
   listTerminalsContract,
+  connectTerminalContract,
 } from "./contracts/terminal";
 import {
   createCommandContract,
@@ -45,6 +46,7 @@ export const routerContract = {
     updateTerminal: updateTerminalContract,
     deleteTerminal: deleteTerminalContract,
     listTerminals: listTerminalsContract,
+    connectTerminal: connectTerminalContract,
   },
   command: {
     createCommand: createCommandContract,

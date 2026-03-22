@@ -24,3 +24,14 @@ export const deleteTerminalContract = oc
 export const listTerminalsContract = oc
   .input(Schema.toStandardSchemaV1(ListTerminalsInputSchema))
   .output(Schema.toStandardSchemaV1(TerminalMetadataListSchema));
+
+export const connectTerminalContract = oc
+  .input(Schema.toStandardSchemaV1(Schema.Struct({ id: Schema.String })))
+  .output(
+    Schema.toStandardSchemaV1(
+      Schema.Struct({
+        success: Schema.Boolean,
+        websocketUrl: Schema.String,
+      }),
+    ),
+  );

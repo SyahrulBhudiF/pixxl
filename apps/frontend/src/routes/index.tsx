@@ -70,8 +70,8 @@ function RouteComponent() {
           <div className="grid grid-cols-2 gap-3">
             <QuickActionCard
               icon={RiFolderOpenLine}
-              title="Open Project"
-              description="Open an existing folder"
+              title="Import Project"
+              description="Open an existing folder as a project"
               href="#"
             />
             <QuickActionCard

@@ -36,11 +36,11 @@ export function ProjectSwitcher({
 }) {
   const { isMobile } = useSidebar();
   const currentProject = projects.find((p) => p.id === currentProjectId) ?? projects[0];
-  
+
   if (!currentProject) {
     return null;
   }
-  
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>

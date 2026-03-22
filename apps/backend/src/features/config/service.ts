@@ -8,7 +8,7 @@ import {
   WorkspaceSchema,
 } from "@pixxl/shared";
 import { Config, Effect, FileSystem, Layer, Path, Schema, ServiceMap, Struct } from "effect";
-import { AppConfigError, ConfigParseError, ConfigSerializeError } from "./error";
+import { AppConfigError } from "./error";
 
 const APP_DIR = "pixxl";
 const CONFIG_FILE = "config.json";
@@ -20,9 +20,6 @@ const PartialAppConfigSchema = Schema.Struct({
   appearance: Schema.optionalKey(AppearanceSchema.mapFields(Struct.map(Schema.optionalKey))),
 });
 type PartialAppConfig = typeof PartialAppConfigSchema.Type;
-
-const mapToAppConfigError = (message: string) =>
-  Effect.mapError((cause) => new AppConfigError({ message, cause }));
 
 function deepMerge<T extends object>(target: T, source: Partial<T>): T {
   const output = { ...target } as Record<string, unknown>;
@@ -75,13 +72,9 @@ function deepPartial<T extends object>(target: T, source: Partial<T>): Partial<T
 }
 
 type ConfigServiceShape = {
-  readonly loadConfig: () => Effect.Effect<AppConfig, AppConfigError | ConfigParseError>;
-  readonly saveConfig: (
-    config: AppConfig,
-  ) => Effect.Effect<void, AppConfigError | ConfigSerializeError>;
-  readonly updateConfig: (
-    partial: PartialAppConfig,
-  ) => Effect.Effect<AppConfig, AppConfigError | ConfigSerializeError | ConfigParseError>;
+  readonly loadConfig: () => Effect.Effect<AppConfig, AppConfigError>;
+  readonly saveConfig: (config: AppConfig) => Effect.Effect<void, AppConfigError>;
+  readonly updateConfig: (partial: PartialAppConfig) => Effect.Effect<AppConfig, AppConfigError>;
   readonly configPath: string;
 };
 
@@ -108,39 +101,33 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
       const loadConfig = Effect.fn("ConfigService.loadConfig")(function* () {
         const dirExists = yield* fs
           .exists(configDir)
-          .pipe(mapToAppConfigError(`Failed to check if config directory exists at ${configDir}`));
+          .pipe(AppConfigError.mapTo(`Failed to check if config directory exists at ${configDir}`));
         if (!dirExists) {
           yield* fs
             .makeDirectory(configDir, { recursive: true })
-            .pipe(mapToAppConfigError(`Failed to create config directory at ${configDir}`));
+            .pipe(AppConfigError.mapTo(`Failed to create config directory at ${configDir}`));
         }
 
         const fileExists = yield* fs
           .exists(configPath)
-          .pipe(mapToAppConfigError(`Failed to check if config file exists at ${configPath}`));
+          .pipe(AppConfigError.mapTo(`Failed to check if config file exists at ${configPath}`));
         if (!fileExists) {
           yield* fs
             .writeFileString(configPath, "{}")
-            .pipe(mapToAppConfigError(`Failed to create config file at ${configPath}`));
+            .pipe(AppConfigError.mapTo(`Failed to create config file at ${configPath}`));
           return DEFAULT_CONFIG;
         }
 
         const content = yield* fs
           .readFileString(configPath)
-          .pipe(mapToAppConfigError(`Failed to read config file at ${configPath}`));
+          .pipe(AppConfigError.mapTo(`Failed to read config file at ${configPath}`));
 
         if (content === "{}" || content === "") {
           return DEFAULT_CONFIG;
         }
 
         const userConfig = yield* decodeConfig(content).pipe(
-          Effect.mapError(
-            (cause) =>
-              new ConfigParseError({
-                message: "Invalid config file. Fix missing/invalid fields in config.json.",
-                cause,
-              }),
-          ),
+          AppConfigError.mapTo(`Invalid config file. Fix missing/invalid fields in config.json.`),
         );
 
         return deepMerge(DEFAULT_CONFIG as PartialAppConfig, userConfig) as AppConfig;
@@ -158,18 +145,12 @@ export class ConfigService extends ServiceMap.Service<ConfigService, ConfigServi
         if (isEmpty) return;
 
         const json = yield* encodeConfig(userConfig).pipe(
-          Effect.mapError(
-            (cause) =>
-              new ConfigSerializeError({
-                message: "Failed to serialize config.json.",
-                cause,
-              }),
-          ),
+          AppConfigError.mapTo(`Failed to serialize config.json.`),
         );
 
         yield* fs
           .writeFileString(configPath, json)
-          .pipe(mapToAppConfigError(`Failed to write config file at ${configPath}`));
+          .pipe(AppConfigError.mapTo(`Failed to write config file at ${configPath}`));
       });
 
       const updateConfig = Effect.fn("ConfigService.updateConfig")(function* (

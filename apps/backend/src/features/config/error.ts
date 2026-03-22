@@ -1,9 +1,12 @@
-import { Schema } from "effect";
+import { Effect, Schema } from "effect";
 
 export class AppConfigError extends Schema.TaggedErrorClass<AppConfigError>()("AppConfigError", {
   message: Schema.String,
   cause: Schema.optionalKey(Schema.Unknown),
-}) {}
+}) {
+  static mapTo = (message: string) =>
+    Effect.mapError((cause) => new AppConfigError({ message: message, cause }));
+}
 
 export class ConfigParseError extends Schema.TaggedErrorClass<ConfigParseError>()(
   "ConfigParseError",
@@ -11,7 +14,10 @@ export class ConfigParseError extends Schema.TaggedErrorClass<ConfigParseError>(
     message: Schema.String,
     cause: Schema.optionalKey(Schema.Unknown),
   },
-) {}
+) {
+  static mapTo = (message: string) =>
+    Effect.mapError((cause) => new ConfigParseError({ message: message, cause }));
+}
 
 export class ConfigSerializeError extends Schema.TaggedErrorClass<ConfigSerializeError>()(
   "ConfigSerializeError",
@@ -19,4 +25,7 @@ export class ConfigSerializeError extends Schema.TaggedErrorClass<ConfigSerializ
     message: Schema.String,
     cause: Schema.optionalKey(Schema.Unknown),
   },
-) {}
+) {
+  static mapTo = (message: string) =>
+    Effect.mapError((cause) => new ConfigSerializeError({ message: message, cause }));
+}

@@ -18,6 +18,7 @@ export const CreateAgentInputSchema = Schema.Struct({
 });
 
 export const UpdateAgentInputSchema = Schema.Struct({
+  projectId: Schema.String,
   id: Schema.String,
   name: Schema.String,
 });

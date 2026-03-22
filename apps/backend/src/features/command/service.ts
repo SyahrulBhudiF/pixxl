@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
 import {
   CommandMetadata,
   CommandMetadataSchema,
@@ -14,7 +14,7 @@ import { generateId } from "@/utils/id";
 type CommandServiceShape = {
   readonly createCommand: (
     input: CreateCommandInput,
-  ) => Effect.Effect<CommandMetadata, CommandError>;
+  ) => Effect.Effect<Option.Option<CommandMetadata>, CommandError>;
   readonly listCommands: (
     input: ListCommandsInput,
   ) => Effect.Effect<CommandMetadata[], CommandError>;
@@ -28,21 +28,32 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
       const path = yield* Path.Path;
       const projectService = yield* ProjectService;
 
+      const decodeCommand = Schema.decodeUnknownEffect(
+        Schema.fromJsonString(CommandMetadataSchema),
+      );
+
       const createCommand = Effect.fn("CommandService.createCommand")(function* (
         input: CreateCommandInput,
       ) {
-        const projects = yield* projectService.listProjects();
-        const project = projects.find((p) => p.id === input.projectId);
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(CommandError.mapTo(`Failed to get project detail`));
 
-        if (!project) {
+        if (Option.isNone(project)) {
           yield* new CommandError({ message: `Project with id ${input.projectId} not found` });
+          return Option.none();
         }
 
-        const commandsPath = path.join(project.path, "commands");
-        const exists = yield* fs.exists(commandsPath);
+        const commandsPath = path.join(project.value.path, "commands");
+        const exists = yield* fs
+          .exists(commandsPath)
+          .pipe(CommandError.mapTo(`Failed to check if path exists`));
 
         if (!exists) {
-          yield* fs.makeDirectory(commandsPath, { recursive: true });
+          yield* fs
+            .makeDirectory(commandsPath, { recursive: true })
+            .pipe(CommandError.mapTo(`Failed to create directory at path ${commandsPath}`));
+          return Option.none();
         }
 
         const id = generateId();
@@ -56,52 +67,55 @@ export class CommandService extends ServiceMap.Service<CommandService, CommandSe
           updatedAt: now,
         };
 
-        yield* fs.writeFileString(
-          path.join(commandsPath, `${id}.json`),
-          JSON.stringify(metadata, null, 2),
-        );
+        yield* fs
+          .writeFileString(path.join(commandsPath, `${id}.json`), JSON.stringify(metadata, null, 2))
+          .pipe(
+            CommandError.mapTo(
+              `Failed to write file at path ${path.join(commandsPath, `${id}.json`)}`,
+            ),
+          );
 
-        return metadata;
+        return Option.some(metadata);
       });
 
       const listCommands = Effect.fn("CommandService.listCommands")(function* (
         input: ListCommandsInput,
       ) {
-        const projects = yield* projectService.listProjects();
-        const project = projects.find((p) => p.id === input.projectId);
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(CommandError.mapTo(`Failed to get project detail`));
 
-        if (!project) {
+        if (Option.isNone(project)) {
           yield* new CommandError({ message: `Project with id ${input.projectId} not found` });
-        }
-
-        const commandsPath = path.join(project.path, "commands");
-        const exists = yield* fs.exists(commandsPath);
-
-        if (!exists) {
           return [];
         }
 
-        const entries = yield* fs.readDirectory(commandsPath);
+        const commandsPath = path.join(project.value.path, "commands");
+        const exists = yield* fs
+          .exists(commandsPath)
+          .pipe(CommandError.mapTo(`Failed to check path at ${commandsPath}`));
+
+        if (!exists) return [];
+
+        const entries = yield* fs
+          .readDirectory(commandsPath)
+          .pipe(CommandError.mapTo(`Failed to read directory at ${commandsPath}`));
         const commandFiles = entries.filter((e) => e.endsWith(".json"));
 
-        if (commandFiles.length === 0) {
-          return [];
-        }
-
-        const decodeCommand = Schema.decodeUnknownEffect(
-          Schema.fromJsonString(CommandMetadataSchema),
-        );
+        if (commandFiles.length === 0) return [];
 
         const commands = yield* Effect.all(
           commandFiles.map((file) =>
-            fs
-              .readFileString(path.join(commandsPath, file))
-              .pipe(Effect.flatMap((content) => decodeCommand(content))),
+            fs.readFileString(path.join(commandsPath, file)).pipe(
+              // TODO: ignore invalid configs for now, might need better handling
+              Effect.flatMap((content) => decodeCommand(content).pipe(Effect.mapError(() => null))),
+              CommandError.mapTo(`Failed to read command at path ${path.join(commandsPath, file)}`),
+            ),
           ),
           { concurrency: "unbounded" },
         );
 
-        return commands;
+        return commands.filter((command) => command !== null);
       });
 
       return { createCommand, listCommands } as const;

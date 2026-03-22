@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
 import {
   TerminalMetadata,
   TerminalMetadataSchema,
@@ -15,10 +15,10 @@ import { generateId } from "@/utils/id";
 type TerminalServiceShape = {
   readonly createTerminal: (
     input: CreateTerminalInput,
-  ) => Effect.Effect<TerminalMetadata, TerminalError>;
+  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
   readonly updateTerminal: (
     input: UpdateTerminalInput,
-  ) => Effect.Effect<TerminalMetadata, TerminalError>;
+  ) => Effect.Effect<Option.Option<TerminalMetadata>, TerminalError>;
   readonly listTerminals: (
     input: ListTerminalsInput,
   ) => Effect.Effect<TerminalMetadata[], TerminalError>;
@@ -32,21 +32,31 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
       const path = yield* Path.Path;
       const projectService = yield* ProjectService;
 
+      const decodeTerminal = Schema.decodeUnknownEffect(
+        Schema.fromJsonString(TerminalMetadataSchema),
+      );
+
       const createTerminal = Effect.fn("TerminalService.createTerminal")(function* (
         input: CreateTerminalInput,
       ) {
-        const projects = yield* projectService.listProjects();
-        const project = projects.find((p) => p.id === input.projectId);
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(TerminalError.mapTo(`Failed to get project with id ${input.projectId}`));
 
-        if (!project) {
+        if (Option.isNone(project)) {
           yield* new TerminalError({ message: `Project with id ${input.projectId} not found` });
+          return Option.none();
         }
 
-        const terminalsPath = path.join(project.path, "terminals");
-        const exists = yield* fs.exists(terminalsPath);
+        const terminalsPath = path.join(project.value.path, "terminals");
+        const exists = yield* fs
+          .exists(terminalsPath)
+          .pipe(TerminalError.mapTo(`Failed to check path at ${terminalsPath}`));
 
         if (!exists) {
-          yield* fs.makeDirectory(terminalsPath, { recursive: true });
+          yield* fs
+            .makeDirectory(terminalsPath, { recursive: true })
+            .pipe(TerminalError.mapTo(`Failed to create directory at ${terminalsPath}`));
         }
 
         const id = generateId();
@@ -58,36 +68,50 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           updatedAt: now,
         };
 
-        yield* fs.writeFileString(
-          path.join(terminalsPath, `${id}.json`),
-          JSON.stringify(metadata, null, 2),
-        );
+        yield* fs
+          .writeFileString(
+            path.join(terminalsPath, `${id}.json`),
+            JSON.stringify(metadata, null, 2),
+          )
+          .pipe(
+            TerminalError.mapTo(
+              `Failed to create terminal with id ${id} at path ${path.join(terminalsPath, `${id}.json`)}`,
+            ),
+          );
 
-        return metadata;
+        return Option.some(metadata);
       });
 
       const updateTerminal = Effect.fn("TerminalService.updateTerminal")(function* (
         input: UpdateTerminalInput,
       ) {
-        const projects = yield* projectService.listProjects();
-        const project = projects.find((p) => p.id === input.projectId);
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(TerminalError.mapTo(`Failed to get project with id ${input.projectId}`));
 
-        if (!project) {
+        if (Option.isNone(project)) {
           yield* new TerminalError({ message: `Project with id ${input.projectId} not found` });
+          return Option.none();
         }
 
-        const filePath = path.join(project.path, "terminals", `${input.id}.json`);
-        const fileExists = yield* fs.exists(filePath);
+        const filePath = path.join(project.value.path, "terminals", `${input.id}.json`);
+        const fileExists = yield* fs
+          .exists(filePath)
+          .pipe(TerminalError.mapTo(`Failed to check if terminal exists at path ${filePath}`));
 
         if (!fileExists) {
           yield* new TerminalError({ message: `Terminal with id ${input.id} not found` });
         }
 
-        const content = yield* fs.readFileString(filePath);
+        const content = yield* fs
+          .readFileString(filePath)
+          .pipe(TerminalError.mapTo(`Failed to read terminal at path ${filePath}`));
         const decodeUnknown = Schema.decodeUnknownEffect(
           Schema.fromJsonString(TerminalMetadataSchema),
         );
-        const current = yield* decodeUnknown(content);
+        const current = yield* decodeUnknown(content).pipe(
+          TerminalError.mapTo(`Failed to decode terminal`),
+        );
 
         const updated: TerminalMetadata = {
           ...current,
@@ -95,49 +119,63 @@ export class TerminalService extends ServiceMap.Service<TerminalService, Termina
           updatedAt: new Date().toISOString(),
         };
 
-        yield* fs.writeFileString(filePath, JSON.stringify(updated, null, 2));
+        yield* fs
+          .writeFileString(filePath, JSON.stringify(updated, null, 2))
+          .pipe(
+            TerminalError.mapTo(
+              `Failed to update terminal with id ${input.id} at path ${filePath}`,
+            ),
+          );
 
-        return updated;
+        return Option.some(updated);
       });
 
       const listTerminals = Effect.fn("TerminalService.listTerminals")(function* (
         input: ListTerminalsInput,
       ) {
-        const projects = yield* projectService.listProjects();
-        const project = projects.find((p) => p.id === input.projectId);
+        const project = yield* projectService
+          .getProjectDetail({ id: input.projectId })
+          .pipe(TerminalError.mapTo(`Failed to get project with id ${input.projectId}`));
 
-        if (!project) {
+        if (Option.isNone(project)) {
           yield* new TerminalError({ message: `Project with id ${input.projectId} not found` });
-        }
-
-        const terminalsPath = path.join(project.path, "terminals");
-        const exists = yield* fs.exists(terminalsPath);
-
-        if (!exists) {
           return [];
         }
 
-        const entries = yield* fs.readDirectory(terminalsPath);
+        const terminalsPath = path.join(project.value.path, "terminals");
+        const exists = yield* fs
+          .exists(terminalsPath)
+          .pipe(
+            TerminalError.mapTo(
+              `Failed to check if terminals path exists at path ${terminalsPath}`,
+            ),
+          );
+
+        if (!exists) return [];
+
+        const entries = yield* fs
+          .readDirectory(terminalsPath)
+          .pipe(TerminalError.mapTo(`Failed to read terminals directory at path ${terminalsPath}`));
         const terminalFiles = entries.filter((e) => e.endsWith(".json"));
 
-        if (terminalFiles.length === 0) {
-          return [];
-        }
-
-        const decodeTerminal = Schema.decodeUnknownEffect(
-          Schema.fromJsonString(TerminalMetadataSchema),
-        );
+        if (terminalFiles.length === 0) return [];
 
         const terminals = yield* Effect.all(
           terminalFiles.map((file) =>
-            fs
-              .readFileString(path.join(terminalsPath, file))
-              .pipe(Effect.flatMap((content) => decodeTerminal(content))),
+            fs.readFileString(path.join(terminalsPath, file)).pipe(
+              // TODO: ignore invalid configs for now, might need better handling
+              Effect.flatMap((content) =>
+                decodeTerminal(content).pipe(Effect.mapError(() => null)),
+              ),
+              TerminalError.mapTo(
+                `Failed to read terminal at path ${path.join(terminalsPath, file)}`,
+              ),
+            ),
           ),
           { concurrency: "unbounded" },
         );
 
-        return terminals;
+        return terminals.filter((terminal) => terminal !== null);
       });
 
       return { createTerminal, updateTerminal, listTerminals } as const;

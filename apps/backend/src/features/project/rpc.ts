@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 import { os } from "@/contract";
 import { ProjectService } from "./service";
 
@@ -26,6 +26,10 @@ export const listProjectsRpc = os.project.listProjects.handler(() =>
 export const getProjectDetailRpc = os.project.getProjectDetail.handler(({ input }) =>
   Effect.gen(function* () {
     const service = yield* ProjectService;
-    return yield* service.getProjectDetail(input);
+    const project = yield* service.getProjectDetail(input);
+    return Option.match(project, {
+      onNone: () => null,
+      onSome: (project) => project,
+    });
   }).pipe(Effect.provide(ProjectService.live), Effect.runPromise),
 );

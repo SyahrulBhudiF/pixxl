@@ -24,4 +24,4 @@ export const listProjectsContract = oc
 
 export const getProjectDetailContract = oc
   .input(Schema.toStandardSchemaV1(GetProjectDetailInputSchema))
-  .output(Schema.toStandardSchemaV1(ProjectDetailSchema));
+  .output(Schema.toStandardSchemaV1(Schema.NullOr(ProjectDetailSchema)));

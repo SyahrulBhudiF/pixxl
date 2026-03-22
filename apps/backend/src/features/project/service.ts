@@ -1,4 +1,4 @@
-import { Effect, FileSystem, Layer, Path, Schema, ServiceMap } from "effect";
+import { Effect, FileSystem, Layer, Option, Path, Schema, ServiceMap } from "effect";
 import {
   CreateProjectInput,
   DeleteProjectInput,
@@ -20,7 +20,7 @@ type ProjectServiceShape = {
   readonly listProjects: () => Effect.Effect<ProjectMetadata[], ProjectError>;
   readonly getProjectDetail: (
     input: GetProjectDetailInput,
-  ) => Effect.Effect<ProjectMetadata, ProjectError>;
+  ) => Effect.Effect<Option.Option<ProjectMetadata>, ProjectError>;
 };
 
 export class ProjectService extends ServiceMap.Service<ProjectService, ProjectServiceShape>()(
@@ -31,23 +31,33 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
       const path = yield* Path.Path;
       const config = yield* ConfigService;
 
+      const decodeProject = Schema.decodeUnknownEffect(
+        Schema.fromJsonString(ProjectMetadataSchema),
+      );
+
       const createProject = Effect.fn("ProjectService.createProject")(function* (
         input: CreateProjectInput,
       ) {
-        const cfg = yield* config.loadConfig();
+        const cfg = yield* config.loadConfig().pipe(ProjectError.mapTo(`Failed to load config`));
 
         const projectPath = path.join(cfg.workspace.directory, slugify(input.name));
-        const exists = yield* fs.exists(projectPath);
+        const exists = yield* fs
+          .exists(projectPath)
+          .pipe(ProjectError.mapTo(`Failed to check path at ${projectPath}`));
 
         if (exists) {
           yield* new ProjectError({ message: `Project already exists at ${projectPath}` });
         }
 
-        yield* fs.makeDirectory(projectPath, { recursive: true });
+        yield* fs
+          .makeDirectory(projectPath, { recursive: true })
+          .pipe(ProjectError.mapTo(`Failed to create project directory at ${projectPath}`));
 
         yield* Effect.all(
           ["agents", "documents", "terminals", "commands"].map((item) =>
-            fs.makeDirectory(path.join(projectPath, item), { recursive: true }),
+            fs
+              .makeDirectory(path.join(projectPath, item), { recursive: true })
+              .pipe(ProjectError.mapTo(`Failed to create directory at ${item}`)),
           ),
           { concurrency: "unbounded" },
         );
@@ -61,10 +71,12 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           updatedAt: now,
         };
 
-        yield* fs.writeFileString(
-          path.join(projectPath, "project.json"),
-          JSON.stringify(metadata, null, 2),
-        );
+        yield* fs
+          .writeFileString(
+            path.join(projectPath, "project.json"),
+            JSON.stringify(metadata, null, 2),
+          )
+          .pipe(ProjectError.mapTo(`Failed to write project.json`));
 
         return metadata;
       });
@@ -80,28 +92,31 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
           return;
         }
 
-        const exists = yield* fs.exists(project.path);
+        const exists = yield* fs
+          .exists(project.path)
+          .pipe(ProjectError.mapTo(`Failed to check path at ${project.path}`));
 
         if (!exists) {
           yield* new ProjectError({ message: `Project does not exist at ${project.path}` });
         }
 
-        yield* fs.remove(project.path, { recursive: true });
+        yield* fs
+          .remove(project.path, { recursive: true })
+          .pipe(ProjectError.mapTo(`Failed to remove project at ${project.path}`));
       });
 
       const listProjects = Effect.fn("ProjectService.listProjects")(function* () {
-        const cfg = yield* config.loadConfig();
+        const cfg = yield* config.loadConfig().pipe(ProjectError.mapTo(`Failed to load config`));
 
-        const workspaceExists = yield* fs.exists(cfg.workspace.directory);
+        const workspaceExists = yield* fs
+          .exists(cfg.workspace.directory)
+          .pipe(ProjectError.mapTo(`Failed to check workspace directory`));
 
-        if (!workspaceExists) {
-          return [];
-        }
+        if (!workspaceExists) return [];
 
-        const entries = yield* fs.readDirectory(cfg.workspace.directory);
-        const decodeProject = Schema.decodeUnknownEffect(
-          Schema.fromJsonString(ProjectMetadataSchema),
-        );
+        const entries = yield* fs
+          .readDirectory(cfg.workspace.directory)
+          .pipe(ProjectError.mapTo(`Failed to read directory at ${cfg.workspace.directory}`));
 
         const projects = yield* Effect.all(
           entries.map((entry) =>
@@ -109,11 +124,17 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
               const projectDir = path.join(cfg.workspace.directory, entry);
               const projectJsonPath = path.join(projectDir, "project.json");
 
-              const exists = yield* fs.exists(projectJsonPath);
+              const exists = yield* fs
+                .exists(projectJsonPath)
+                .pipe(ProjectError.mapTo(`Failed to check path at ${projectJsonPath}`));
               if (!exists) return;
 
-              const content = yield* fs.readFileString(projectJsonPath);
-              const metadata = yield* decodeProject(content);
+              const content = yield* fs
+                .readFileString(projectJsonPath)
+                .pipe(ProjectError.mapTo(`Failed to read file at ${projectJsonPath}`));
+              const metadata = yield* decodeProject(content).pipe(
+                ProjectError.mapTo(`Failed to decode project metadata at ${projectJsonPath}`),
+              );
               return metadata;
             }),
           ),
@@ -131,9 +152,10 @@ export class ProjectService extends ServiceMap.Service<ProjectService, ProjectSe
 
         if (!project) {
           yield* new ProjectError({ message: `Project with id ${input.id} not found` });
+          return Option.none();
         }
 
-        return project;
+        return Option.some(project);
       });
 
       return { createProject, deleteProject, listProjects, getProjectDetail } as const;

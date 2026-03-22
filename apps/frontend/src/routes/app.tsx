@@ -10,8 +10,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useListAgents } from "@/features/project/hooks/use-project";
-import type { Agent } from "@pixxl/shared";
+import { useListAgents, useListTerminals } from "@/features/project/hooks/use-project";
+import type { Agent, Terminal } from "@pixxl/shared";
 
 export const Route = createFileRoute("/app")({
   component: RouteComponent,
@@ -20,12 +20,15 @@ export const Route = createFileRoute("/app")({
 function RouteComponent() {
   const projectId = useParams({ from: "/app/$projectId/" }).projectId;
   const agentsQuery = useListAgents({ projectId });
+  const terminalsQuery = useListTerminals({ projectId });
 
   return (
     <SidebarProvider>
       <AppSidebar
         agents={[...(agentsQuery.data ?? [])] as Agent[]}
+        terminals={[...(terminalsQuery.data ?? [])] as Terminal[]}
         isAgentsLoading={agentsQuery.isLoading}
+        isTerminalsLoading={terminalsQuery.isLoading}
       />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

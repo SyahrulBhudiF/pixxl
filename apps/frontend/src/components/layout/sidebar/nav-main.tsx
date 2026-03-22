@@ -9,22 +9,22 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import { cn } from "@/lib/utils";
 import { RiArrowRightSLine } from "@remixicon/react";
 
-export function NavMain({
-  items,
-}: {
-  items: {
+interface NavItem {
+  title: string;
+  url: string;
+  icon?: React.ReactNode;
+  isActive?: boolean;
+  items?: {
     title: string;
     url: string;
-    icon?: React.ReactNode;
-    isActive?: boolean;
-    items?: {
-      title: string;
-      url: string;
-    }[];
+    disabled?: boolean;
   }[];
-}) {
+}
+
+export function NavMain({ items }: { items: NavItem[] }) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Development</SidebarGroupLabel>
@@ -43,13 +43,37 @@ export function NavMain({
             </CollapsibleTrigger>
             <CollapsibleContent>
               <SidebarMenuSub>
-                {item.items?.map((subItem) => (
-                  <SidebarMenuSubItem key={subItem.title}>
-                    <SidebarMenuSubButton render={<a href={subItem.url} />}>
-                      <span>{subItem.title}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                ))}
+                {item.items?.map((subItem, index) => {
+                  if (subItem.title === "" || subItem.disabled) {
+                    return (
+                      <SidebarMenuSubItem key={`empty-${index}`}>
+                        <SidebarMenuSubButton
+                          className={cn(
+                            subItem.disabled &&
+                            "text-muted-foreground hover:bg-transparent active:bg-transparent hover:text-muted-foreground active:text-muted-foreground opacity-50",
+                          )}
+                        >
+                          <span>No {item.title.toLowerCase()}</span>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    );
+                  }
+                  return (
+                    <SidebarMenuSubItem key={subItem.title}>
+                      <SidebarMenuSubButton render={<a href={subItem.url} />}>
+                        <span
+                          className={
+                            subItem.title.startsWith("+ ")
+                              ? "text-muted-foreground font-normal"
+                              : undefined
+                          }
+                        >
+                          {subItem.title}
+                        </span>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  );
+                })}
               </SidebarMenuSub>
             </CollapsibleContent>
           </Collapsible>

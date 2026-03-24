@@ -8,6 +8,7 @@ import {
   RiGithubLine,
   RiSettings4Line,
   RiQuestionLine,
+  RiErrorWarningLine,
 } from "@remixicon/react";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,12 +116,22 @@ function RouteComponent() {
                 <span className="text-muted-foreground">Loading...</span>
               </div>
             )}
-            {!projects.isLoading && projects.data.length === 0 && (
+            {projects.isError && (
+              <div className="flex h-32 flex-col items-center justify-center gap-2 px-4 text-center">
+                <RiErrorWarningLine className="size-6 text-destructive" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Failed to load projects</p>
+                  <p className="text-xs text-muted-foreground">{projects.status}</p>
+                </div>
+              </div>
+            )}
+            {!projects.isLoading && !projects.isError && projects.data.length === 0 && (
               <div className="px-4 py-8 text-center text-sm text-muted-foreground">
                 No projects found
               </div>
             )}
             {!projects.isLoading &&
+              !projects.isError &&
               projects.data.map((project, index) => (
                 <RecentProjectItem
                   key={project.id}

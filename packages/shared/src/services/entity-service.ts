@@ -19,23 +19,31 @@ export type EntityMetadata = {
   readonly updatedAt: string;
 };
 
-export type EntityDefinition<TEntity extends EntityMetadata, TCreate, TUpdate = TCreate> = {
+type CreateInputBase = {
+  readonly projectPath: string;
+};
+
+export type EntityDefinition<
+  TEntity extends EntityMetadata,
+  TCreate extends CreateInputBase,
+  TUpdate = TCreate,
+> = {
   readonly directoryName: string;
   readonly schema: Schema.Schema<TEntity>;
   readonly create: (input: TCreate & { readonly id: string; readonly now: string }) => TEntity;
   readonly update: (current: TEntity, input: TUpdate & { readonly now: string }) => TEntity;
 };
 
-export type EntityOperations<TEntity, TCreate, TUpdate = TCreate> = {
+export type EntityOperations<TEntity, TCreate extends CreateInputBase, TUpdate = TCreate> = {
   readonly create: (
-    input: { readonly projectPath: string } & TCreate,
+    input: TCreate & { readonly id: string },
   ) => Effect.Effect<TEntity, EntityServiceError>;
   readonly get: (input: {
     readonly projectPath: string;
     readonly id: string;
   }) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
   readonly update: (
-    input: { readonly projectPath: string; readonly id: string } & TUpdate,
+    input: { readonly id: string } & TUpdate,
   ) => Effect.Effect<Option.Option<TEntity>, EntityServiceError>;
   readonly delete: (input: {
     readonly projectPath: string;
@@ -47,7 +55,11 @@ export type EntityOperations<TEntity, TCreate, TUpdate = TCreate> = {
 };
 
 type EntityServiceShape = {
-  readonly forEntity: <TEntity extends EntityMetadata, TCreate, TUpdate = TCreate>(
+  readonly forEntity: <
+    TEntity extends EntityMetadata,
+    TCreate extends CreateInputBase,
+    TUpdate extends CreateInputBase = TCreate,
+  >(
     definition: EntityDefinition<TEntity, TCreate, TUpdate>,
   ) => EntityOperations<TEntity, TCreate, TUpdate>;
 };
@@ -59,7 +71,11 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
       const fs = yield* FileSystem.FileSystem;
       const path = yield* Path.Path;
 
-      const forEntity = <TEntity extends EntityMetadata, TCreate, TUpdate = TCreate>(
+      const forEntity = <
+        TEntity extends EntityMetadata,
+        TCreate extends CreateInputBase,
+        TUpdate extends CreateInputBase = TCreate,
+      >(
         definition: EntityDefinition<TEntity, TCreate, TUpdate>,
       ): EntityOperations<TEntity, TCreate, TUpdate> => {
         const entityPath = (projectPath: string) =>
@@ -68,10 +84,12 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         const filePath = (projectPath: string, id: string) =>
           path.join(entityPath(projectPath), `${id}.json`);
 
-        const decodeEntity = Schema.decodeUnknownEffect(Schema.fromJsonString(definition.schema));
+        const decodeEntity = Schema.decodeUnknownEffect(
+          Schema.fromJsonString(definition.schema),
+        ) as (content: string) => Effect.Effect<TEntity, unknown, never>;
 
         const create = Effect.fn("EntityService.create")(function* (
-          input: { readonly projectPath: string } & TCreate,
+          input: { readonly id: string } & TCreate,
         ) {
           const directoryPath = entityPath(input.projectPath);
           const exists = yield* fs
@@ -87,6 +105,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
           const now = new Date().toISOString();
           const entity = definition.create({
             ...input,
+            id: input.id,
             now,
           });
 
@@ -125,7 +144,7 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
         });
 
         const update = Effect.fn("EntityService.update")(function* (
-          input: { readonly projectPath: string; readonly id: string } & TUpdate,
+          input: { readonly id: string } & TUpdate,
         ) {
           const currentFilePath = filePath(input.projectPath, input.id);
           const exists = yield* fs
@@ -184,18 +203,14 @@ export class EntityService extends ServiceMap.Service<EntityService, EntityServi
             .exists(directoryPath)
             .pipe(EntityServiceError.mapTo(`Failed to check path: ${directoryPath}`));
 
-          if (!exists) {
-            return [];
-          }
+          if (!exists) return [];
 
           const entries = yield* fs
             .readDirectory(directoryPath)
             .pipe(EntityServiceError.mapTo(`Failed to read directory`));
           const files = entries.filter((entry) => entry.endsWith(".json"));
 
-          if (files.length === 0) {
-            return [];
-          }
+          if (files.length === 0) return [];
 
           return yield* Effect.all(
             files.map((file) =>
